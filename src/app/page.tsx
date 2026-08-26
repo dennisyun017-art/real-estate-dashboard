@@ -4,10 +4,15 @@ import {
   getRegionRecentTrades,
   getRegionMonthlyTrend,
   getLatestCollectRun,
+  getAllRegionsSummary,
+  getFavoritesWithLatest,
 } from "@/lib/queries";
 import RegionSelect from "@/components/RegionSelect";
 import TrendChart from "@/components/TrendChart";
 import LogoutButton from "@/components/LogoutButton";
+import RegionMap from "@/components/RegionMapLoader";
+import FavoritesList from "@/components/FavoritesList";
+import FavoriteStar from "@/components/FavoriteStar";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -23,14 +28,20 @@ export default async function Home({
     (typeof params.region === "string" ? params.region : undefined) ??
     REGIONS[0].code;
 
-  const [citySummary, recentTrades, trend, lastRun] = await Promise.all([
-    getCitySummary(),
-    getRegionRecentTrades(selectedRegion, 20),
-    getRegionMonthlyTrend(selectedRegion, 6),
-    getLatestCollectRun(),
-  ]);
+  const [citySummary, recentTrades, trend, lastRun, regionsSummary, favorites] =
+    await Promise.all([
+      getCitySummary(),
+      getRegionRecentTrades(selectedRegion, 20),
+      getRegionMonthlyTrend(selectedRegion, 6),
+      getLatestCollectRun(),
+      getAllRegionsSummary(),
+      getFavoritesWithLatest(),
+    ]);
 
   const regionInfo = REGIONS.find((r) => r.code === selectedRegion);
+  const favoriteKeys = new Set(
+    favorites.map((f) => `${f.region_code}|${f.dong}|${f.apt_name}`)
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -91,6 +102,22 @@ export default async function Home({
           )}
         </section>
 
+        {/* 지도 시각화 */}
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-gray-500">
+            지역별 지도 (원 크기 = 거래량, 색 = 평당가 — 클릭하면 아래 상세로 이동)
+          </h2>
+          <RegionMap summary={regionsSummary} selectedRegion={selectedRegion} />
+        </section>
+
+        {/* 관심 단지 즐겨찾기 */}
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-gray-500">
+            ⭐ 관심 단지
+          </h2>
+          <FavoritesList favorites={favorites} />
+        </section>
+
         {/* 지역 상세 */}
         <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
@@ -115,6 +142,7 @@ export default async function Home({
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-xs text-gray-400">
+                  <th className="py-2 pr-2"></th>
                   <th className="py-2 pr-4">단지명</th>
                   <th className="py-2 pr-4">동</th>
                   <th className="py-2 pr-4">전용면적</th>
@@ -127,13 +155,25 @@ export default async function Home({
               <tbody>
                 {recentTrades.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-gray-400">
+                    <td colSpan={8} className="py-6 text-center text-gray-400">
                       데이터가 없습니다.
                     </td>
                   </tr>
                 ) : (
                   recentTrades.map((t, i) => (
                     <tr key={i} className="border-b border-gray-100">
+                      <td className="py-2 pr-2">
+                        <FavoriteStar
+                          regionCode={selectedRegion}
+                          city={regionInfo?.city ?? ""}
+                          district={regionInfo?.district ?? ""}
+                          dong={t.dong}
+                          aptName={t.apt_name}
+                          initiallyFavorited={favoriteKeys.has(
+                            `${selectedRegion}|${t.dong}|${t.apt_name}`
+                          )}
+                        />
+                      </td>
                       <td className="py-2 pr-4 font-medium text-gray-800">
                         {t.apt_name}
                       </td>

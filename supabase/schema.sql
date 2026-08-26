@@ -62,3 +62,27 @@ returns table(month text, cnt bigint, avg_price_per_pyeong numeric) as $$
   group by to_char(deal_date, 'YYYY-MM')
   order by month;
 $$ language sql stable;
+
+-- 지도 시각화용: 모든 지역을 한 번에 집계 (지역 수만큼 46번 쿼리하지 않도록)
+create or replace function all_regions_month_summary(p_start date, p_end date)
+returns table(region_code text, cnt bigint, avg_price_per_pyeong numeric) as $$
+  select
+    region_code,
+    count(*) as cnt,
+    round(avg(deal_amount / (exclusive_area / 3.3058))) as avg_price_per_pyeong
+  from apt_trades
+  where deal_date >= p_start and deal_date < p_end
+  group by region_code;
+$$ language sql stable;
+
+-- 관심 단지 즐겨찾기 (가족/지인이 공유하는 단일 목록 — 계정별 구분 없음)
+create table if not exists favorites (
+  id bigint generated always as identity primary key,
+  region_code text not null,
+  city text not null,
+  district text not null,
+  dong text not null,
+  apt_name text not null,
+  created_at timestamptz not null default now(),
+  unique (region_code, dong, apt_name)
+);

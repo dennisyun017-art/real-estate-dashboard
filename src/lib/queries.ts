@@ -95,6 +95,107 @@ export async function getRegionMonthlyTrend(regionCode: string, months = 6) {
   );
 }
 
+export type RegionSummary = {
+  regionCode: string;
+  count: number;
+  avgPricePerPyeong: number;
+};
+
+/** 지도 시각화용: 이번달 지역(시군구)별 요약을 한 번의 쿼리로 전부 가져옵니다 */
+export async function getAllRegionsSummary(): Promise<RegionSummary[]> {
+  const supabase = getSupabaseAdmin();
+  const { start, end } = monthRange(0);
+  const { data, error } = await supabase.rpc("all_regions_month_summary", {
+    p_start: toISODate(start),
+    p_end: toISODate(end),
+  });
+  if (error) throw new Error(error.message);
+
+  return (
+    (data as { region_code: string; cnt: number; avg_price_per_pyeong: number }[]) ?? []
+  ).map((r) => ({
+    regionCode: r.region_code,
+    count: r.cnt,
+    avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
+  }));
+}
+
+export type Favorite = {
+  id: number;
+  region_code: string;
+  city: string;
+  district: string;
+  dong: string;
+  apt_name: string;
+  created_at: string;
+};
+
+export type FavoriteWithLatest = Favorite & {
+  latestDealDate: string | null;
+  latestDealAmount: number | null;
+  latestExclusiveArea: number | null;
+};
+
+/** 즐겨찾기 목록 + 각 단지의 가장 최근 거래 1건 */
+export async function getFavoritesWithLatest(): Promise<FavoriteWithLatest[]> {
+  const supabase = getSupabaseAdmin();
+  const { data: favorites, error } = await supabase
+    .from("favorites")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  if (!favorites || favorites.length === 0) return [];
+
+  const withLatest = await Promise.all(
+    (favorites as Favorite[]).map(async (fav) => {
+      const { data: latest } = await supabase
+        .from("apt_trades")
+        .select("deal_date, deal_amount, exclusive_area")
+        .eq("region_code", fav.region_code)
+        .eq("dong", fav.dong)
+        .eq("apt_name", fav.apt_name)
+        .order("deal_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return {
+        ...fav,
+        latestDealDate: latest?.deal_date ?? null,
+        latestDealAmount: latest?.deal_amount ?? null,
+        latestExclusiveArea: latest?.exclusive_area ?? null,
+      };
+    })
+  );
+
+  return withLatest;
+}
+
+export async function addFavorite(input: {
+  regionCode: string;
+  city: string;
+  district: string;
+  dong: string;
+  aptName: string;
+}) {
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from("favorites").upsert(
+    {
+      region_code: input.regionCode,
+      city: input.city,
+      district: input.district,
+      dong: input.dong,
+      apt_name: input.aptName,
+    },
+    { onConflict: "region_code,dong,apt_name", ignoreDuplicates: true }
+  );
+  if (error) throw new Error(error.message);
+}
+
+export async function removeFavorite(id: number) {
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from("favorites").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
 export async function getLatestCollectRun() {
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
