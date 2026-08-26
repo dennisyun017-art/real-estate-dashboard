@@ -76,21 +76,44 @@ export type RegionTradeDetail = {
   estate_agent_location: string | null;
 };
 
+export type RegionTradesPage = {
+  trades: RegionTradeDetail[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
 /**
- * 특정 지역(법정동코드)의 최근 거래 목록 — 신고가 여부, 해제 여부, 거래유형,
- * 중개사무소 소재지까지 포함한 상세 정보 (DB에서 한 번에 계산해서 반환).
+ * 특정 지역(법정동코드)의 거래 목록 — 신고가 여부, 해제 여부, 거래유형,
+ * 중개사무소 소재지까지 포함한 상세 정보 + 기간 검색 + 페이지네이션 (DB에서 한 번에 계산).
  */
 export async function getRegionRecentTrades(
   regionCode: string,
-  limit = 30
-): Promise<RegionTradeDetail[]> {
+  opts: {
+    page?: number;
+    pageSize?: number;
+    startDate?: string; // YYYY-MM-DD
+    endDate?: string; // YYYY-MM-DD
+  } = {}
+): Promise<RegionTradesPage> {
+  const { page = 1, pageSize = 50, startDate, endDate } = opts;
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase.rpc("region_recent_trades_detailed", {
     p_region: regionCode,
-    p_limit: limit,
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+    p_start_date: startDate ?? null,
+    p_end_date: endDate ?? null,
   });
   if (error) throw new Error(error.message);
-  return (data as RegionTradeDetail[]) ?? [];
+
+  const rows = (data as (RegionTradeDetail & { total_count: number })[]) ?? [];
+  const totalCount = rows[0]?.total_count ?? 0;
+  const trades: RegionTradeDetail[] = rows.map(
+    ({ total_count: _total_count, ...rest }) => rest
+  );
+
+  return { trades, totalCount, page, pageSize };
 }
 
 /** 특정 지역의 최근 N개월 월별 평균 평당가 추이 (DB에서 GROUP BY로 집계) */

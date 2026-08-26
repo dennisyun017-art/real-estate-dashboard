@@ -124,9 +124,17 @@ returns table(
   limit p_limit;
 $$ language sql stable;
 
--- 최근 거래 내역 상세 (신고가 여부 포함). 신고가 = 같은 단지·같은 전용면적에서
--- 지금까지 수집된 거래 중 가장 높은 금액과 같거나 그보다 높은 경우.
-create or replace function region_recent_trades_detailed(p_region text, p_limit int default 30)
+-- 최근 거래 내역 상세 (신고가 여부 + 기간 검색 + 페이지네이션).
+-- 신고가 = 같은 단지·같은 전용면적에서 지금까지 수집된 거래 중 가장 높은 금액과 같거나 그보다 높은 경우.
+drop function if exists region_recent_trades_detailed(text, int);
+
+create or replace function region_recent_trades_detailed(
+  p_region text,
+  p_limit int default 50,
+  p_offset int default 0,
+  p_start_date date default null,
+  p_end_date date default null
+)
 returns table(
   apt_name text,
   dong text,
@@ -139,14 +147,21 @@ returns table(
   is_new_high boolean,
   cancel_date date,
   dealing_type text,
-  estate_agent_location text
+  estate_agent_location text,
+  total_count bigint
 ) as $$
-  with recent as (
-    select *
+  with filtered as (
+    select *, count(*) over () as total_count
     from apt_trades
     where region_code = p_region
+      and (p_start_date is null or deal_date >= p_start_date)
+      and (p_end_date is null or deal_date <= p_end_date)
+  ),
+  recent as (
+    select *
+    from filtered
     order by deal_date desc
-    limit p_limit
+    limit p_limit offset p_offset
   ),
   highs as (
     select dong, apt_name, exclusive_area, max(deal_amount) as historic_high
@@ -158,7 +173,8 @@ returns table(
     r.apt_name, r.dong, r.exclusive_area, r.floor, r.build_year, r.deal_date, r.deal_amount,
     h.historic_high,
     (r.deal_amount >= h.historic_high) as is_new_high,
-    r.cancel_date, r.dealing_type, r.estate_agent_location
+    r.cancel_date, r.dealing_type, r.estate_agent_location,
+    r.total_count
   from recent r
   join highs h
     on h.dong = r.dong and h.apt_name = r.apt_name and h.exclusive_area = r.exclusive_area

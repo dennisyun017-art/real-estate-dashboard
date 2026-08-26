@@ -28,11 +28,20 @@ export default async function Home({
   const selectedRegion =
     (typeof params.region === "string" ? params.region : undefined) ??
     REGIONS[0].code;
+  const page = Math.max(1, Number(params.page) || 1);
+  const startDate = typeof params.start === "string" ? params.start : undefined;
+  const endDate = typeof params.end === "string" ? params.end : undefined;
+  const PAGE_SIZE = 50;
 
-  const [citySummary, recentTrades, trend, lastRun, regionsSummary, favorites] =
+  const [citySummary, tradesPage, trend, lastRun, regionsSummary, favorites] =
     await Promise.all([
       getCitySummary(),
-      getRegionRecentTrades(selectedRegion, 20),
+      getRegionRecentTrades(selectedRegion, {
+        page,
+        pageSize: PAGE_SIZE,
+        startDate,
+        endDate,
+      }),
       getRegionMonthlyTrend(selectedRegion, 6),
       getLatestCollectRun(),
       getAllRegionsSummary(),
@@ -143,7 +152,12 @@ export default async function Home({
             최근 거래 내역
           </h3>
           <RecentTradesTable
-            trades={recentTrades}
+            trades={tradesPage.trades}
+            totalCount={tradesPage.totalCount}
+            page={tradesPage.page}
+            pageSize={tradesPage.pageSize}
+            startDate={startDate}
+            endDate={endDate}
             regionCode={selectedRegion}
             city={regionInfo?.city ?? ""}
             district={regionInfo?.district ?? ""}
