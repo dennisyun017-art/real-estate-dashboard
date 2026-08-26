@@ -13,6 +13,7 @@ import LogoutButton from "@/components/LogoutButton";
 import RegionMap from "@/components/RegionMapLoader";
 import FavoritesList from "@/components/FavoritesList";
 import FavoriteStar from "@/components/FavoriteStar";
+import SearchBox from "@/components/SearchBox";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -112,9 +113,12 @@ export default async function Home({
 
         {/* 관심 단지 즐겨찾기 */}
         <section>
-          <h2 className="mb-3 text-sm font-medium text-gray-500">
-            ⭐ 관심 단지
-          </h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-medium text-gray-500">⭐ 관심 단지</h2>
+          </div>
+          <div className="mb-4">
+            <SearchBox />
+          </div>
           <FavoritesList favorites={favorites} />
         </section>
 

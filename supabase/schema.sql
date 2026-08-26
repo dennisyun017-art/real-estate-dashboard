@@ -86,3 +86,35 @@ create table if not exists favorites (
   created_at timestamptz not null default now(),
   unique (region_code, dong, apt_name)
 );
+
+-- 단지 이름 검색 (현재 선택된 지역과 무관하게 전체 수집 범위에서 검색해서 즐겨찾기 추가 가능하게)
+create extension if not exists pg_trgm;
+
+create index if not exists idx_apt_trades_apt_name_trgm
+  on apt_trades using gin (apt_name gin_trgm_ops);
+
+create or replace function search_apartments(p_query text, p_limit int default 20)
+returns table(
+  region_code text,
+  city text,
+  district text,
+  dong text,
+  apt_name text,
+  cnt bigint,
+  latest_deal_date date,
+  latest_deal_amount integer
+) as $$
+  select distinct on (region_code, dong, apt_name)
+    region_code,
+    city,
+    district,
+    dong,
+    apt_name,
+    count(*) over (partition by region_code, dong, apt_name) as cnt,
+    deal_date as latest_deal_date,
+    deal_amount as latest_deal_amount
+  from apt_trades
+  where apt_name ilike '%' || p_query || '%'
+  order by region_code, dong, apt_name, deal_date desc
+  limit p_limit;
+$$ language sql stable;

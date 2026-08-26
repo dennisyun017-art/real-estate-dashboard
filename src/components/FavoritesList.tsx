@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FavoriteWithLatest } from "@/lib/queries";
+import TrendChart from "@/components/TrendChart";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -53,6 +54,11 @@ export default function FavoritesList({
               </p>
             ) : (
               <p className="mt-1 text-sm text-gray-400">아직 수집된 거래 없음</p>
+            )}
+            {fav.trend.length > 1 && (
+              <div className="mt-2 w-40">
+                <TrendChart data={fav.trend} height={48} compact />
+              </div>
             )}
           </div>
           <button

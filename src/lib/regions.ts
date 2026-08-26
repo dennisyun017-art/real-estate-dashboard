@@ -74,4 +74,14 @@ export const REGIONS: Region[] = [
 
   // 세종특별자치시
   { code: "36110", city: "세종", district: "세종시", lat: 36.480, lng: 127.289 },
+
+  // 경기도 (관심 요청 지역)
+  { code: "41111", city: "수원", district: "장안구", lat: 37.298, lng: 127.010 },
+  { code: "41113", city: "수원", district: "권선구", lat: 37.263, lng: 126.971 },
+  { code: "41115", city: "수원", district: "팔달구", lat: 37.281, lng: 127.019 },
+  { code: "41117", city: "수원", district: "영통구", lat: 37.259, lng: 127.058 },
+  { code: "41465", city: "용인", district: "수지구", lat: 37.322, lng: 127.097 },
+  // 화성시는 2024.1.1 특례시 승격과 함께 동탄구/봉담구/향남구 3개 일반구로 개편됨.
+  // LAWD_CD는 41597 (반송동·청계동·석우동·목동 등 동탄1·2신도시 핵심 동 포함, API로 실측 확인).
+  { code: "41597", city: "화성", district: "동탄구", lat: 37.201, lng: 127.075 },
 ];
