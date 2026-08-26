@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { REGIONS } from "@/lib/regions";
 
 export type CitySummary = {
   city: string;
@@ -114,6 +115,98 @@ export async function getRegionRecentTrades(
   );
 
   return { trades, totalCount, page, pageSize };
+}
+
+/** CSV 내보내기용: 페이지네이션 없이 조건에 맞는 전체 거래를 가져옵니다 (1000행 제한을 range()로 우회) */
+export async function getRegionTradesForExport(
+  regionCode: string,
+  startDate?: string,
+  endDate?: string
+): Promise<RegionTradeDetail[]> {
+  const supabase = getSupabaseAdmin();
+  const CHUNK = 1000;
+  let offset = 0;
+  const all: RegionTradeDetail[] = [];
+
+  for (;;) {
+    let q = supabase
+      .from("apt_trades")
+      .select(
+        "apt_name, dong, exclusive_area, floor, build_year, deal_date, deal_amount, cancel_date, dealing_type, estate_agent_location"
+      )
+      .eq("region_code", regionCode)
+      .order("deal_date", { ascending: false })
+      .range(offset, offset + CHUNK - 1);
+    if (startDate) q = q.gte("deal_date", startDate);
+    if (endDate) q = q.lte("deal_date", endDate);
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(
+      ...data.map((r) => ({ ...r, historic_high: 0, is_new_high: false }))
+    );
+    if (data.length < CHUNK) break;
+    offset += CHUNK;
+  }
+
+  return all;
+}
+
+export type RegionRanking = {
+  regionCode: string;
+  city: string;
+  district: string;
+  count: number;
+  avgPricePerPyeong: number;
+  changePct: number | null;
+};
+
+/** 지역(시군구)별 이번달 평당가와 전월 대비 변동률 — 급등/급락 랭킹용 */
+export async function getRegionRankings(): Promise<RegionRanking[]> {
+  const supabase = getSupabaseAdmin();
+  const thisMonth = monthRange(0);
+  const prevMonth = monthRange(1);
+
+  const [{ data: curRows, error: curErr }, { data: prevRows, error: prevErr }] =
+    await Promise.all([
+      supabase.rpc("all_regions_month_summary", {
+        p_start: toISODate(thisMonth.start),
+        p_end: toISODate(thisMonth.end),
+      }),
+      supabase.rpc("all_regions_month_summary", {
+        p_start: toISODate(prevMonth.start),
+        p_end: toISODate(prevMonth.end),
+      }),
+    ]);
+  if (curErr) throw new Error(curErr.message);
+  if (prevErr) throw new Error(prevErr.message);
+
+  type Row = { region_code: string; cnt: number; avg_price_per_pyeong: number };
+  const prevMap = new Map(((prevRows as Row[]) ?? []).map((r) => [r.region_code, r]));
+  const regionInfoMap = new Map(REGIONS.map((r) => [r.code, r]));
+
+  return ((curRows as Row[]) ?? [])
+    .map((r): RegionRanking => {
+      const info = regionInfoMap.get(r.region_code);
+      const prev = prevMap.get(r.region_code);
+      const changePct =
+        prev && prev.avg_price_per_pyeong > 0
+          ? ((r.avg_price_per_pyeong - prev.avg_price_per_pyeong) /
+              prev.avg_price_per_pyeong) *
+            100
+          : null;
+      return {
+        regionCode: r.region_code,
+        city: info?.city ?? "",
+        district: info?.district ?? "",
+        count: r.cnt,
+        avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
+        changePct: changePct !== null ? Math.round(changePct * 10) / 10 : null,
+      };
+    })
+    // 거래량이 너무 적으면 변동률이 튀는 노이즈일 뿐이라 랭킹에서 제외
+    .filter((r) => r.count >= 3 && r.changePct !== null);
 }
 
 /** 특정 지역의 최근 N개월 월별 평균 평당가 추이 (DB에서 GROUP BY로 집계) */

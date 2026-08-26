@@ -6,6 +6,7 @@ import {
   getLatestCollectRun,
   getAllRegionsSummary,
   getFavoritesWithLatest,
+  getRegionRankings,
 } from "@/lib/queries";
 import RegionSelect from "@/components/RegionSelect";
 import TrendChart from "@/components/TrendChart";
@@ -14,6 +15,7 @@ import RegionMap from "@/components/RegionMapLoader";
 import FavoritesList from "@/components/FavoritesList";
 import SearchBox from "@/components/SearchBox";
 import RecentTradesTable from "@/components/RecentTradesTable";
+import RegionRankings from "@/components/RegionRankings";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -33,20 +35,28 @@ export default async function Home({
   const endDate = typeof params.end === "string" ? params.end : undefined;
   const PAGE_SIZE = 50;
 
-  const [citySummary, tradesPage, trend, lastRun, regionsSummary, favorites] =
-    await Promise.all([
-      getCitySummary(),
-      getRegionRecentTrades(selectedRegion, {
-        page,
-        pageSize: PAGE_SIZE,
-        startDate,
-        endDate,
-      }),
-      getRegionMonthlyTrend(selectedRegion, 6),
-      getLatestCollectRun(),
-      getAllRegionsSummary(),
-      getFavoritesWithLatest(),
-    ]);
+  const [
+    citySummary,
+    tradesPage,
+    trend,
+    lastRun,
+    regionsSummary,
+    favorites,
+    rankings,
+  ] = await Promise.all([
+    getCitySummary(),
+    getRegionRecentTrades(selectedRegion, {
+      page,
+      pageSize: PAGE_SIZE,
+      startDate,
+      endDate,
+    }),
+    getRegionMonthlyTrend(selectedRegion, 6),
+    getLatestCollectRun(),
+    getAllRegionsSummary(),
+    getFavoritesWithLatest(),
+    getRegionRankings(),
+  ]);
 
   const regionInfo = REGIONS.find((r) => r.code === selectedRegion);
   const favoriteKeys = favorites.map(
@@ -110,6 +120,14 @@ export default async function Home({
               ))}
             </div>
           )}
+        </section>
+
+        {/* 급등/급락 랭킹 */}
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-gray-500">
+            이번달 평당가 전월 대비 변동률 랭킹
+          </h2>
+          <RegionRankings rankings={rankings} />
         </section>
 
         {/* 지도 시각화 */}

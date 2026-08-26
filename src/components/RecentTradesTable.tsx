@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import FavoriteStar from "@/components/FavoriteStar";
 import type { RegionTradeDetail } from "@/lib/queries";
+import { buildPageList } from "@/lib/pagination";
 
 const PYEONG = 3.3058;
 
@@ -139,6 +140,14 @@ export default function RecentTradesTable({
         <span className="text-xs text-gray-400">
           전체 {totalCount.toLocaleString()}건 중 {filtered.length}건 표시
         </span>
+        <a
+          href={`/api/export?region=${regionCode}${startDate ? `&start=${startDate}` : ""}${
+            endDate ? `&end=${endDate}` : ""
+          }`}
+          className="ml-auto rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50"
+        >
+          ⬇ CSV 내보내기 (현재 조회기간 전체)
+        </a>
       </div>
 
       {filtered.length === 0 ? (
@@ -257,21 +266,37 @@ export default function RecentTradesTable({
 
       {/* 페이지네이션 */}
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-3 text-sm">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-sm">
           <button
             onClick={() => goToPage(page - 1)}
             disabled={page <= 1}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-gray-600 disabled:opacity-30"
+            className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-gray-600 disabled:opacity-30"
           >
             이전
           </button>
-          <span className="text-gray-500">
-            {page} / {totalPages} 페이지
-          </span>
+          {buildPageList(page, totalPages).map((p, i) =>
+            p === "..." ? (
+              <span key={`ellipsis-${i}`} className="px-1 text-gray-300">
+                …
+              </span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => goToPage(p)}
+                className={`min-w-[2.25rem] rounded-lg px-2.5 py-1.5 ${
+                  p === page
+                    ? "bg-blue-600 font-medium text-white"
+                    : "border border-gray-300 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
           <button
             onClick={() => goToPage(page + 1)}
             disabled={page >= totalPages}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-gray-600 disabled:opacity-30"
+            className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-gray-600 disabled:opacity-30"
           >
             다음
           </button>
