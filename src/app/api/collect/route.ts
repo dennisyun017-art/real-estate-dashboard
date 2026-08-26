@@ -59,9 +59,30 @@ export async function GET(req: NextRequest) {
           updated_at: new Date().toISOString(),
         }));
 
+        // 같은 배치 안에 유니크 키가 완전히 동일한 행이 있으면(실거래가 원본의 중복 신고 등)
+        // "ON CONFLICT DO UPDATE command cannot affect row a second time" 오류가 나므로
+        // upsert 전에 자연키 기준으로 중복을 제거합니다.
+        const dedupedRows = Array.from(
+          new Map(
+            rows.map((r) => [
+              [
+                r.region_code,
+                r.dong,
+                r.jibun,
+                r.apt_name,
+                r.exclusive_area,
+                r.floor,
+                r.deal_date,
+                r.deal_amount,
+              ].join("|"),
+              r,
+            ])
+          ).values()
+        );
+
         const { error } = await supabase
           .from("apt_trades")
-          .upsert(rows, {
+          .upsert(dedupedRows, {
             onConflict:
               "region_code,dong,jibun,apt_name,exclusive_area,floor,deal_date,deal_amount",
             ignoreDuplicates: false,
@@ -70,7 +91,7 @@ export async function GET(req: NextRequest) {
         if (error) {
           errors.push(`${region.city} ${region.district} ${ym}: ${error.message}`);
         } else {
-          rowsUpserted += rows.length;
+          rowsUpserted += dedupedRows.length;
         }
       } catch (e) {
         errors.push(

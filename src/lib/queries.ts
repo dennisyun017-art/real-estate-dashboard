@@ -1,20 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-const PYEONG = 3.3058; // 1평 = 3.3058 m^2
-
 export type CitySummary = {
   city: string;
   count: number;
   avgPricePerPyeong: number; // 만원/평
   prevAvgPricePerPyeong: number | null;
   changePct: number | null; // 전월 대비 %
-};
-
-type TradeRow = {
-  city: string;
-  deal_amount: number;
-  exclusive_area: number;
-  deal_date: string;
 };
 
 function monthRange(monthsAgo: number) {
@@ -28,51 +19,43 @@ function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-function avgPricePerPyeong(rows: TradeRow[]): number {
-  if (rows.length === 0) return 0;
-  const total = rows.reduce(
-    (sum, r) => sum + r.deal_amount / (r.exclusive_area / PYEONG),
-    0
-  );
-  return Math.round(total / rows.length);
-}
+type CityMonthRow = { city: string; cnt: number; avg_price_per_pyeong: number };
 
-/** 시/도별 이번달 vs 전월 평균 평당가 요약 */
+/** 시/도별 이번달 vs 전월 평균 평당가 요약 (DB에서 GROUP BY로 집계 — 1000행 제한 영향 없음) */
 export async function getCitySummary(): Promise<CitySummary[]> {
   const supabase = getSupabaseAdmin();
   const thisMonth = monthRange(0);
   const prevMonth = monthRange(1);
 
-  const { data: curRows, error: curErr } = await supabase
-    .from("apt_trades")
-    .select("city, deal_amount, exclusive_area, deal_date")
-    .gte("deal_date", toISODate(thisMonth.start))
-    .lt("deal_date", toISODate(thisMonth.end));
+  const { data: curRows, error: curErr } = await supabase.rpc(
+    "city_month_summary",
+    { p_start: toISODate(thisMonth.start), p_end: toISODate(thisMonth.end) }
+  );
   if (curErr) throw new Error(curErr.message);
 
-  const { data: prevRows, error: prevErr } = await supabase
-    .from("apt_trades")
-    .select("city, deal_amount, exclusive_area, deal_date")
-    .gte("deal_date", toISODate(prevMonth.start))
-    .lt("deal_date", toISODate(prevMonth.end));
+  const { data: prevRows, error: prevErr } = await supabase.rpc(
+    "city_month_summary",
+    { p_start: toISODate(prevMonth.start), p_end: toISODate(prevMonth.end) }
+  );
   if (prevErr) throw new Error(prevErr.message);
 
-  const cities = Array.from(
-    new Set([...(curRows ?? []), ...(prevRows ?? [])].map((r) => r.city))
-  ).sort();
+  const curMap = new Map((curRows as CityMonthRow[] ?? []).map((r) => [r.city, r]));
+  const prevMap = new Map((prevRows as CityMonthRow[] ?? []).map((r) => [r.city, r]));
+
+  const cities = Array.from(new Set([...curMap.keys(), ...prevMap.keys()])).sort();
 
   return cities.map((city) => {
-    const cur = (curRows ?? []).filter((r) => r.city === city);
-    const prev = (prevRows ?? []).filter((r) => r.city === city);
-    const curAvg = avgPricePerPyeong(cur);
-    const prevAvg = prev.length > 0 ? avgPricePerPyeong(prev) : null;
+    const cur = curMap.get(city);
+    const prev = prevMap.get(city);
+    const curAvg = cur?.avg_price_per_pyeong ?? 0;
+    const prevAvg = prev?.avg_price_per_pyeong ?? null;
     const changePct =
       prevAvg && prevAvg > 0 ? ((curAvg - prevAvg) / prevAvg) * 100 : null;
     return {
       city,
-      count: cur.length,
-      avgPricePerPyeong: curAvg,
-      prevAvgPricePerPyeong: prevAvg,
+      count: cur?.cnt ?? 0,
+      avgPricePerPyeong: Math.round(curAvg),
+      prevAvgPricePerPyeong: prevAvg !== null ? Math.round(prevAvg) : null,
       changePct: changePct !== null ? Math.round(changePct * 10) / 10 : null,
     };
   });
@@ -93,31 +76,23 @@ export async function getRegionRecentTrades(regionCode: string, limit = 30) {
   return data ?? [];
 }
 
-/** 특정 지역의 최근 N개월 월별 평균 평당가 추이 */
+/** 특정 지역의 최근 N개월 월별 평균 평당가 추이 (DB에서 GROUP BY로 집계) */
 export async function getRegionMonthlyTrend(regionCode: string, months = 6) {
   const supabase = getSupabaseAdmin();
   const { start } = monthRange(months - 1);
-  const { data, error } = await supabase
-    .from("apt_trades")
-    .select("deal_amount, exclusive_area, deal_date")
-    .eq("region_code", regionCode)
-    .gte("deal_date", toISODate(start));
+  const { data, error } = await supabase.rpc("region_monthly_trend", {
+    p_region: regionCode,
+    p_start: toISODate(start),
+  });
   if (error) throw new Error(error.message);
 
-  const buckets = new Map<string, TradeRow[]>();
-  for (const row of data ?? []) {
-    const ym = row.deal_date.slice(0, 7); // YYYY-MM
-    if (!buckets.has(ym)) buckets.set(ym, []);
-    buckets.get(ym)!.push({ ...row, city: "" });
-  }
-
-  return Array.from(buckets.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, rows]) => ({
-      month,
-      avgPricePerPyeong: avgPricePerPyeong(rows),
-      count: rows.length,
-    }));
+  return ((data as { month: string; cnt: number; avg_price_per_pyeong: number }[]) ?? []).map(
+    (r) => ({
+      month: r.month,
+      avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
+      count: r.cnt,
+    })
+  );
 }
 
 export async function getLatestCollectRun() {

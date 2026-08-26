@@ -1,0 +1,12 @@
+⨯ Error: Could not find the function public.region_monthly_trend(p_region, p_start) in the schema cache
+    at getRegionMonthlyTrend (src\lib\queries.ts:87:20)
+    at async Home (src\app\page.tsx:26:55)
+  85 |     p_start: toISODate(start),
+  86 |   });
+> 87 |   if (error) throw new Error(error.message);
+     |                    ^
+  88 |
+  89 |   return ((data as { month: string; cnt: number; avg_price_per_pyeong: number }[]) ?? []).map(
+  90 |     (r) => ({ {
+  digest: '1851855047'
+}

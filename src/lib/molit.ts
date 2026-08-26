@@ -52,7 +52,10 @@ export async function fetchAptTrades(
   const parsed = parser.parse(xml);
 
   const header = parsed?.response?.header;
-  if (header?.resultCode !== "000") {
+  // fast-xml-parser는 "000" 같은 숫자처럼 보이는 문자열을 자동으로 숫자로 변환하므로
+  // 문자열로 다시 변환해서 비교해야 합니다.
+  const resultCode = String(header?.resultCode ?? "").padStart(3, "0");
+  if (resultCode !== "000") {
     throw new Error(
       `실거래가 API 오류: ${header?.resultCode} ${header?.resultMsg ?? ""}`
     );
