@@ -31,8 +31,10 @@ export default async function Home({
     (typeof params.region === "string" ? params.region : undefined) ??
     REGIONS[0].code;
   const page = Math.max(1, Number(params.page) || 1);
-  const startDate = typeof params.start === "string" ? params.start : undefined;
-  const endDate = typeof params.end === "string" ? params.end : undefined;
+  const startDate =
+    typeof params.start === "string" && params.start !== "" ? params.start : undefined;
+  const endDate =
+    typeof params.end === "string" && params.end !== "" ? params.end : undefined;
   const PAGE_SIZE = 50;
 
   const [
