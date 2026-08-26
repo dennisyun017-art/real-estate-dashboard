@@ -12,8 +12,8 @@ import TrendChart from "@/components/TrendChart";
 import LogoutButton from "@/components/LogoutButton";
 import RegionMap from "@/components/RegionMapLoader";
 import FavoritesList from "@/components/FavoritesList";
-import FavoriteStar from "@/components/FavoriteStar";
 import SearchBox from "@/components/SearchBox";
+import RecentTradesTable from "@/components/RecentTradesTable";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -40,8 +40,8 @@ export default async function Home({
     ]);
 
   const regionInfo = REGIONS.find((r) => r.code === selectedRegion);
-  const favoriteKeys = new Set(
-    favorites.map((f) => `${f.region_code}|${f.dong}|${f.apt_name}`)
+  const favoriteKeys = favorites.map(
+    (f) => `${f.region_code}|${f.dong}|${f.apt_name}`
   );
 
   return (
@@ -142,63 +142,13 @@ export default async function Home({
           <h3 className="mb-2 mt-6 text-xs font-medium text-gray-400">
             최근 거래 내역
           </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-xs text-gray-400">
-                  <th className="py-2 pr-2"></th>
-                  <th className="py-2 pr-4">단지명</th>
-                  <th className="py-2 pr-4">동</th>
-                  <th className="py-2 pr-4">전용면적</th>
-                  <th className="py-2 pr-4">층</th>
-                  <th className="py-2 pr-4">건축년도</th>
-                  <th className="py-2 pr-4">계약일</th>
-                  <th className="py-2 pr-4 text-right">거래금액</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentTrades.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-6 text-center text-gray-400">
-                      데이터가 없습니다.
-                    </td>
-                  </tr>
-                ) : (
-                  recentTrades.map((t, i) => (
-                    <tr key={i} className="border-b border-gray-100">
-                      <td className="py-2 pr-2">
-                        <FavoriteStar
-                          regionCode={selectedRegion}
-                          city={regionInfo?.city ?? ""}
-                          district={regionInfo?.district ?? ""}
-                          dong={t.dong}
-                          aptName={t.apt_name}
-                          initiallyFavorited={favoriteKeys.has(
-                            `${selectedRegion}|${t.dong}|${t.apt_name}`
-                          )}
-                        />
-                      </td>
-                      <td className="py-2 pr-4 font-medium text-gray-800">
-                        {t.apt_name}
-                      </td>
-                      <td className="py-2 pr-4 text-gray-500">{t.dong}</td>
-                      <td className="py-2 pr-4 text-gray-500">
-                        {t.exclusive_area}m²
-                      </td>
-                      <td className="py-2 pr-4 text-gray-500">{t.floor ?? "-"}</td>
-                      <td className="py-2 pr-4 text-gray-500">
-                        {t.build_year ?? "-"}
-                      </td>
-                      <td className="py-2 pr-4 text-gray-500">{t.deal_date}</td>
-                      <td className="py-2 pr-4 text-right font-medium text-gray-800">
-                        {formatEok(t.deal_amount)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <RecentTradesTable
+            trades={recentTrades}
+            regionCode={selectedRegion}
+            city={regionInfo?.city ?? ""}
+            district={regionInfo?.district ?? ""}
+            favoriteKeys={favoriteKeys}
+          />
         </section>
       </main>
     </div>

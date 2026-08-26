@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
           floor: t.floor,
           deal_date: toDealDate(t.dealYear, t.dealMonth, t.dealDay),
           deal_amount: t.dealAmount,
+          cancel_date: t.cancelDate,
+          dealing_type: t.dealingType,
+          estate_agent_location: t.estateAgentLocation,
           updated_at: new Date().toISOString(),
         }));
 

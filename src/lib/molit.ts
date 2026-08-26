@@ -17,6 +17,9 @@ export type AptTrade = {
   dealMonth: number;
   dealDay: number;
   dealAmount: number; // 만원 단위
+  cancelDate: string | null; // cdealDay, 계약 해제일 (YYYY-MM-DD), 없으면 null
+  dealingType: string | null; // dealingGbn: 중개거래 | 직거래
+  estateAgentLocation: string | null; // estateAgentSggNm: 중개사무소 소재지
 };
 
 const parser = new XMLParser();
@@ -25,6 +28,21 @@ function toNumber(v: unknown): number {
   if (v === undefined || v === null) return NaN;
   const s = String(v).trim().replace(/,/g, "");
   return s === "" ? NaN : Number(s);
+}
+
+function toTrimmedStringOrNull(v: unknown): string | null {
+  const s = String(v ?? "").trim();
+  return s === "" ? null : s;
+}
+
+// cdealDay는 "26.08.20" (YY.MM.DD) 형식으로 내려옵니다. 비어있으면 해제되지 않은 거래입니다.
+function parseShortDate(v: unknown): string | null {
+  const s = toTrimmedStringOrNull(v);
+  if (!s) return null;
+  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{2})$/);
+  if (!m) return null;
+  const [, yy, mm, dd] = m;
+  return `20${yy}-${mm}-${dd}`;
 }
 
 /**
@@ -80,6 +98,9 @@ export async function fetchAptTrades(
       dealMonth: toNumber(it.dealMonth),
       dealDay: toNumber(it.dealDay),
       dealAmount: toNumber(it.dealAmount),
+      cancelDate: parseShortDate(it.cdealDay),
+      dealingType: toTrimmedStringOrNull(it.dealingGbn),
+      estateAgentLocation: toTrimmedStringOrNull(it.estateAgentSggNm),
     }))
     .filter((t) => Number.isFinite(t.dealAmount) && t.aptName !== "");
 }

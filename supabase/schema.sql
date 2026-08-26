@@ -25,6 +25,11 @@ create index if not exists idx_apt_trades_region_date
 create index if not exists idx_apt_trades_apt_name
   on apt_trades (apt_name);
 
+-- 이미 만들어진 테이블에도 안전하게 적용되도록 ALTER로 추가 (신규 설치 시에는 no-op)
+alter table apt_trades add column if not exists cancel_date date;
+alter table apt_trades add column if not exists dealing_type text;
+alter table apt_trades add column if not exists estate_agent_location text;
+
 -- 수집 실행 이력 (배치가 언제 마지막으로 성공했는지 대시보드에 표시하기 위함)
 create table if not exists collect_runs (
   id bigint generated always as identity primary key,
@@ -117,4 +122,45 @@ returns table(
   where apt_name ilike '%' || p_query || '%'
   order by region_code, dong, apt_name, deal_date desc
   limit p_limit;
+$$ language sql stable;
+
+-- 최근 거래 내역 상세 (신고가 여부 포함). 신고가 = 같은 단지·같은 전용면적에서
+-- 지금까지 수집된 거래 중 가장 높은 금액과 같거나 그보다 높은 경우.
+create or replace function region_recent_trades_detailed(p_region text, p_limit int default 30)
+returns table(
+  apt_name text,
+  dong text,
+  exclusive_area numeric,
+  floor integer,
+  build_year integer,
+  deal_date date,
+  deal_amount integer,
+  historic_high integer,
+  is_new_high boolean,
+  cancel_date date,
+  dealing_type text,
+  estate_agent_location text
+) as $$
+  with recent as (
+    select *
+    from apt_trades
+    where region_code = p_region
+    order by deal_date desc
+    limit p_limit
+  ),
+  highs as (
+    select dong, apt_name, exclusive_area, max(deal_amount) as historic_high
+    from apt_trades
+    where region_code = p_region
+    group by dong, apt_name, exclusive_area
+  )
+  select
+    r.apt_name, r.dong, r.exclusive_area, r.floor, r.build_year, r.deal_date, r.deal_amount,
+    h.historic_high,
+    (r.deal_amount >= h.historic_high) as is_new_high,
+    r.cancel_date, r.dealing_type, r.estate_agent_location
+  from recent r
+  join highs h
+    on h.dong = r.dong and h.apt_name = r.apt_name and h.exclusive_area = r.exclusive_area
+  order by r.deal_date desc;
 $$ language sql stable;

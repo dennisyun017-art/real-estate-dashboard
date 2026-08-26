@@ -61,19 +61,36 @@ export async function getCitySummary(): Promise<CitySummary[]> {
   });
 }
 
-/** 특정 지역(법정동코드)의 최근 거래 목록 */
-export async function getRegionRecentTrades(regionCode: string, limit = 30) {
+export type RegionTradeDetail = {
+  apt_name: string;
+  dong: string;
+  exclusive_area: number;
+  floor: number | null;
+  build_year: number | null;
+  deal_date: string;
+  deal_amount: number;
+  historic_high: number;
+  is_new_high: boolean;
+  cancel_date: string | null;
+  dealing_type: string | null;
+  estate_agent_location: string | null;
+};
+
+/**
+ * 특정 지역(법정동코드)의 최근 거래 목록 — 신고가 여부, 해제 여부, 거래유형,
+ * 중개사무소 소재지까지 포함한 상세 정보 (DB에서 한 번에 계산해서 반환).
+ */
+export async function getRegionRecentTrades(
+  regionCode: string,
+  limit = 30
+): Promise<RegionTradeDetail[]> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("apt_trades")
-    .select(
-      "apt_name, dong, exclusive_area, floor, build_year, deal_date, deal_amount"
-    )
-    .eq("region_code", regionCode)
-    .order("deal_date", { ascending: false })
-    .limit(limit);
+  const { data, error } = await supabase.rpc("region_recent_trades_detailed", {
+    p_region: regionCode,
+    p_limit: limit,
+  });
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data as RegionTradeDetail[]) ?? [];
 }
 
 /** 특정 지역의 최근 N개월 월별 평균 평당가 추이 (DB에서 GROUP BY로 집계) */
