@@ -6,10 +6,7 @@ import dynamic from "next/dynamic";
 const RegionMap = dynamic(() => import("@/components/RegionMap"), {
   ssr: false,
   loading: () => (
-    <div
-      className="flex items-center justify-center rounded-xl bg-gray-100 text-sm text-gray-400"
-      style={{ height: 420 }}
-    >
+    <div className="flex h-[280px] items-center justify-center rounded-xl bg-gray-100 text-sm text-gray-400 sm:h-[420px]">
       지도를 불러오는 중...
     </div>
   ),

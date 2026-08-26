@@ -49,9 +49,9 @@ export default function SearchBox() {
           {results.map((r) => (
             <div
               key={`${r.regionCode}-${r.dong}-${r.aptName}`}
-              className="flex items-center justify-between gap-3 px-4 py-2 text-sm"
+              className="flex items-start justify-between gap-3 px-4 py-2 text-sm"
             >
-              <div>
+              <div className="min-w-0">
                 <span className="font-medium text-gray-800">{r.aptName}</span>
                 <span className="ml-2 text-xs text-gray-400">
                   {r.city} {r.district} {r.dong}

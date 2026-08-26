@@ -47,13 +47,13 @@ export default async function Home({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <h1 className="text-lg font-semibold text-gray-900">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+          <h1 className="text-base font-semibold text-gray-900 sm:text-lg">
             🏠 부동산 실거래가 대시보드
           </h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between gap-4 sm:justify-end">
             <span className="text-xs text-gray-400">
-              마지막 갱신:{" "}
+              갱신:{" "}
               {lastRun?.finished_at
                 ? new Date(lastRun.finished_at).toLocaleString("ko-KR")
                 : "아직 없음"}
@@ -63,7 +63,7 @@ export default async function Home({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8">
         {/* 시/도별 요약 카드 */}
         <section>
           <h2 className="mb-3 text-sm font-medium text-gray-500">
@@ -123,8 +123,8 @@ export default async function Home({
         </section>
 
         {/* 지역 상세 */}
-        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
+        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-sm font-medium text-gray-500">
               지역별 상세 —{" "}
               <span className="font-semibold text-gray-800">

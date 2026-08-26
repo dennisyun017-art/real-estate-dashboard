@@ -36,11 +36,12 @@ export default function RegionMap({
   const maxCount = Math.max(1, ...summary.map((s) => s.count));
 
   return (
+    <div className="h-[280px] w-full overflow-hidden rounded-xl sm:h-[420px]">
     <MapContainer
       center={[36.6, 127.3]}
       zoom={7}
       scrollWheelZoom={false}
-      style={{ height: 420, width: "100%", borderRadius: 12 }}
+      style={{ height: "100%", width: "100%" }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -88,5 +89,6 @@ export default function RegionMap({
         );
       })}
     </MapContainer>
+    </div>
   );
 }
