@@ -6,6 +6,7 @@ import FavoriteStar from "@/components/FavoriteStar";
 import type { RegionTradeDetail } from "@/lib/queries";
 import { buildPageList } from "@/lib/pagination";
 import ApartmentHistoryModal from "@/components/ApartmentHistoryModal";
+import { AREA_BUCKETS } from "@/lib/areaBuckets";
 
 const PYEONG = 3.3058;
 
@@ -28,6 +29,8 @@ export default function RecentTradesTable({
   pageSize,
   startDate,
   endDate,
+  query,
+  areaBucket,
   regionCode,
   city,
   district,
@@ -39,6 +42,8 @@ export default function RecentTradesTable({
   pageSize: number;
   startDate?: string;
   endDate?: string;
+  query?: string;
+  areaBucket?: string;
   regionCode: string;
   city: string;
   district: string;
@@ -46,10 +51,11 @@ export default function RecentTradesTable({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState("");
   const [onlyNewHigh, setOnlyNewHigh] = useState(false);
   const [localStart, setLocalStart] = useState(startDate ?? "");
   const [localEnd, setLocalEnd] = useState(endDate ?? "");
+  const [localQuery, setLocalQuery] = useState(query ?? "");
+  const [localArea, setLocalArea] = useState(areaBucket ?? "");
   const [historyTarget, setHistoryTarget] = useState<{ dong: string; aptName: string } | null>(
     null
   );
@@ -64,32 +70,37 @@ export default function RecentTradesTable({
     router.push(`/?${p.toString()}`);
   }
 
-  function applyDateRange() {
-    pushParams({ start: localStart || undefined, end: localEnd || undefined, page: undefined });
+  function applyFilters() {
+    pushParams({
+      start: localStart || undefined,
+      end: localEnd || undefined,
+      q: localQuery.trim() || undefined,
+      area: localArea || undefined,
+      page: undefined,
+    });
   }
 
-  function resetDateRange() {
+  function resetFilters() {
     setLocalStart("");
     setLocalEnd("");
-    pushParams({ start: undefined, end: undefined, page: undefined });
+    setLocalQuery("");
+    setLocalArea("");
+    pushParams({ start: undefined, end: undefined, q: undefined, area: undefined, page: undefined });
   }
 
   function goToPage(p: number) {
     pushParams({ page: p === 1 ? undefined : String(p) });
   }
 
-  const filtered = trades.filter((t) => {
-    if (onlyNewHigh && !t.is_new_high) return false;
-    if (query.trim() === "") return true;
-    const q = query.trim();
-    return t.apt_name.includes(q) || t.dong.includes(q);
-  });
+  const hasActiveFilters = !!(startDate || endDate || query || areaBucket);
+
+  const filtered = onlyNewHigh ? trades.filter((t) => t.is_new_high) : trades;
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return (
     <div>
-      {/* 조회 기간 검색 */}
+      {/* 조회 조건: 기간 / 평형 / 단지명·동 검색 — 전체 데이터 대상 */}
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <div className="flex flex-col">
           <label className="text-xs text-gray-400">시작일</label>
@@ -109,37 +120,55 @@ export default function RecentTradesTable({
             className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
           />
         </div>
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-400">평형</label>
+          <select
+            value={localArea}
+            onChange={(e) => setLocalArea(e.target.value)}
+            className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+          >
+            {AREA_BUCKETS.map((b) => (
+              <option key={b.key} value={b.key}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col">
+          <label className="text-xs text-gray-400">단지명·동 검색 (전체)</label>
+          <input
+            type="text"
+            value={localQuery}
+            onChange={(e) => setLocalQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+            placeholder="예: 래미안, 여울동..."
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
         <button
-          onClick={applyDateRange}
+          onClick={applyFilters}
           className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
         >
           조회
         </button>
-        {(startDate || endDate) && (
+        {hasActiveFilters && (
           <button
-            onClick={resetDateRange}
+            onClick={resetFilters}
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50"
           >
-            전체기간
+            초기화
           </button>
         )}
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="현재 페이지 안에서 단지명·동 검색"
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
         <label className="flex items-center gap-1.5 text-sm text-gray-600">
           <input
             type="checkbox"
             checked={onlyNewHigh}
             onChange={(e) => setOnlyNewHigh(e.target.checked)}
           />
-          신고가만
+          신고가만 (현재 페이지 안에서)
         </label>
         <span className="text-xs text-gray-400">
           전체 {totalCount.toLocaleString()}건 중 {filtered.length}건 표시
@@ -147,10 +176,12 @@ export default function RecentTradesTable({
         <a
           href={`/api/export?region=${regionCode}${startDate ? `&start=${startDate}` : ""}${
             endDate ? `&end=${endDate}` : ""
+          }${query ? `&q=${encodeURIComponent(query)}` : ""}${
+            areaBucket ? `&area=${areaBucket}` : ""
           }`}
           className="ml-auto rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50"
         >
-          ⬇ CSV 내보내기 (현재 조회기간 전체)
+          ⬇ CSV 내보내기 (현재 조회조건 전체)
         </a>
       </div>
 
@@ -186,6 +217,7 @@ export default function RecentTradesTable({
                         </button>
                         <p className="text-xs text-gray-400">
                           {t.dong} · {toPyeong(t.exclusive_area)} ({t.exclusive_area}m²) ·{" "}
+                          {t.building_no ? `${t.building_no}동 ` : ""}
                           {t.floor ?? "-"}층
                         </p>
                       </div>
@@ -238,6 +270,7 @@ export default function RecentTradesTable({
                   <th className="py-2 pr-2"></th>
                   <th className="py-2 pr-4">동</th>
                   <th className="py-2 pr-4">단지명</th>
+                  <th className="py-2 pr-4">건물동</th>
                   <th className="py-2 pr-4">전용면적</th>
                   <th className="py-2 pr-4">평형</th>
                   <th className="py-2 pr-4">층</th>
@@ -346,7 +379,7 @@ function FragmentRow({
     <>
       {showYearHeader && (
         <tr>
-          <td colSpan={12} className="bg-gray-50 py-1.5 pl-1 text-xs font-semibold text-gray-400">
+          <td colSpan={13} className="bg-gray-50 py-1.5 pl-1 text-xs font-semibold text-gray-400">
             {yearOf(t.deal_date)}년
           </td>
         </tr>
@@ -367,6 +400,9 @@ function FragmentRow({
           <button onClick={onSelectApt} className="text-left hover:underline">
             {t.apt_name}
           </button>
+        </td>
+        <td className="py-2 pr-4 text-gray-500">
+          {t.building_no ? `${t.building_no}동` : "-"}
         </td>
         <td className="py-2 pr-4 text-gray-500">{t.exclusive_area}m²</td>
         <td className="py-2 pr-4 text-gray-500">{toPyeong(t.exclusive_area)}</td>

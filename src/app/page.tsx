@@ -8,7 +8,9 @@ import {
   getFavoritesWithLatest,
   getRegionRankings,
   getFavoriteRegions,
+  getRegionDongRanking,
 } from "@/lib/queries";
+import { bucketToRange } from "@/lib/areaBuckets";
 import RegionSelect from "@/components/RegionSelect";
 import TrendChart from "@/components/TrendChart";
 import LogoutButton from "@/components/LogoutButton";
@@ -18,6 +20,7 @@ import SearchBox from "@/components/SearchBox";
 import RecentTradesTable from "@/components/RecentTradesTable";
 import RegionRankings from "@/components/RegionRankings";
 import FavoriteRegionStar from "@/components/FavoriteRegionStar";
+import DongRanking from "@/components/DongRanking";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -37,6 +40,9 @@ export default async function Home({
     typeof params.start === "string" && params.start !== "" ? params.start : undefined;
   const endDate =
     typeof params.end === "string" && params.end !== "" ? params.end : undefined;
+  const query = typeof params.q === "string" && params.q !== "" ? params.q : undefined;
+  const areaBucket = typeof params.area === "string" ? params.area : "";
+  const { min: minArea, max: maxArea } = bucketToRange(areaBucket);
   const PAGE_SIZE = 50;
 
   const [
@@ -48,6 +54,7 @@ export default async function Home({
     favorites,
     rankings,
     favoriteRegions,
+    dongRanking,
   ] = await Promise.all([
     getCitySummary(),
     getRegionRecentTrades(selectedRegion, {
@@ -55,6 +62,9 @@ export default async function Home({
       pageSize: PAGE_SIZE,
       startDate,
       endDate,
+      query,
+      minArea,
+      maxArea,
     }),
     getRegionMonthlyTrend(selectedRegion, 6),
     getLatestCollectRun(),
@@ -62,6 +72,7 @@ export default async function Home({
     getFavoritesWithLatest(),
     getRegionRankings(),
     getFavoriteRegions(),
+    getRegionDongRanking(selectedRegion, 3, 5),
   ]);
 
   const regionInfo = REGIONS.find((r) => r.code === selectedRegion);
@@ -179,6 +190,13 @@ export default async function Home({
           </div>
 
           <h3 className="mb-2 text-xs font-medium text-gray-400">
+            최근 3개월 거래량 많은 동
+          </h3>
+          <div className="mb-6">
+            <DongRanking items={dongRanking} />
+          </div>
+
+          <h3 className="mb-2 text-xs font-medium text-gray-400">
             최근 6개월 평당가 추이
           </h3>
           <TrendChart data={trend} />
@@ -193,6 +211,8 @@ export default async function Home({
             pageSize={tradesPage.pageSize}
             startDate={startDate}
             endDate={endDate}
+            query={query}
+            areaBucket={areaBucket}
             regionCode={selectedRegion}
             city={regionInfo?.city ?? ""}
             district={regionInfo?.district ?? ""}

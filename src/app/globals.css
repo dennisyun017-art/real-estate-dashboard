@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* 이 대시보드는 다크모드 화면을 별도로 만들지 않았습니다.
+     color-scheme을 light로 고정해서, 모바일에서 OS가 다크모드일 때
+     브라우저가 input/select 같은 폼 요소 글자색을 제멋대로 밝게(연하게)
+     바꿔버려 흰 배경 위에서 안 보이게 되는 문제를 막습니다. */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -12,15 +17,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 폼 요소 글자색을 명시적으로 고정 (일부 모바일 브라우저의 다크모드 자동 반전 방지) */
+input,
+select,
+textarea {
+  color: #111827;
+  background-color: #ffffff;
 }

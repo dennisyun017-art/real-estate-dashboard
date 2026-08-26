@@ -20,6 +20,7 @@ export type AptTrade = {
   cancelDate: string | null; // cdealDay, 계약 해제일 (YYYY-MM-DD), 없으면 null
   dealingType: string | null; // dealingGbn: 중개거래 | 직거래
   estateAgentLocation: string | null; // estateAgentSggNm: 중개사무소 소재지
+  buildingNo: string | null; // aptDong: 동(건물) 번호. 호수는 개인정보라 공공데이터에 없음
 };
 
 const parser = new XMLParser();
@@ -101,6 +102,7 @@ export async function fetchAptTrades(
       cancelDate: parseShortDate(it.cdealDay),
       dealingType: toTrimmedStringOrNull(it.dealingGbn),
       estateAgentLocation: toTrimmedStringOrNull(it.estateAgentSggNm),
+      buildingNo: toTrimmedStringOrNull(it.aptDong),
     }))
     .filter((t) => Number.isFinite(t.dealAmount) && t.aptName !== "");
 }

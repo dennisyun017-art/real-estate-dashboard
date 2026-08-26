@@ -85,6 +85,7 @@ export default function ApartmentHistoryModal({
                 <thead>
                   <tr className="border-b border-gray-200 text-xs text-gray-400">
                     <th className="py-1.5 pr-3">계약일</th>
+                    <th className="py-1.5 pr-3">건물동</th>
                     <th className="py-1.5 pr-3">전용면적</th>
                     <th className="py-1.5 pr-3">층</th>
                     <th className="py-1.5 pr-3 text-right">거래금액</th>
@@ -101,6 +102,9 @@ export default function ApartmentHistoryModal({
                       }`}
                     >
                       <td className="py-1.5 pr-3 text-gray-500">{t.deal_date}</td>
+                      <td className="py-1.5 pr-3 text-gray-500">
+                        {t.building_no ? `${t.building_no}동` : "-"}
+                      </td>
                       <td className="py-1.5 pr-3 text-gray-500">{t.exclusive_area}m²</td>
                       <td className="py-1.5 pr-3 text-gray-500">{t.floor ?? "-"}</td>
                       <td className="py-1.5 pr-3 text-right font-medium text-gray-800">

@@ -75,6 +75,7 @@ export type RegionTradeDetail = {
   cancel_date: string | null;
   dealing_type: string | null;
   estate_agent_location: string | null;
+  building_no: string | null;
 };
 
 export type RegionTradesPage = {
@@ -95,9 +96,12 @@ export async function getRegionRecentTrades(
     pageSize?: number;
     startDate?: string; // YYYY-MM-DD
     endDate?: string; // YYYY-MM-DD
+    query?: string; // 단지명·동 검색어 (전체 데이터 대상)
+    minArea?: number; // 전용면적(m²) 하한
+    maxArea?: number; // 전용면적(m²) 상한 (미만)
   } = {}
 ): Promise<RegionTradesPage> {
-  const { page = 1, pageSize = 50, startDate, endDate } = opts;
+  const { page = 1, pageSize = 50, startDate, endDate, query, minArea, maxArea } = opts;
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase.rpc("region_recent_trades_detailed", {
     p_region: regionCode,
@@ -105,6 +109,9 @@ export async function getRegionRecentTrades(
     p_offset: (page - 1) * pageSize,
     p_start_date: startDate ?? null,
     p_end_date: endDate ?? null,
+    p_query: query ?? null,
+    p_min_area: minArea ?? null,
+    p_max_area: maxArea ?? null,
   });
   if (error) throw new Error(error.message);
 
@@ -121,7 +128,10 @@ export async function getRegionRecentTrades(
 export async function getRegionTradesForExport(
   regionCode: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  searchQuery?: string,
+  minArea?: number,
+  maxArea?: number
 ): Promise<RegionTradeDetail[]> {
   const supabase = getSupabaseAdmin();
   const CHUNK = 1000;
@@ -132,13 +142,19 @@ export async function getRegionTradesForExport(
     let q = supabase
       .from("apt_trades")
       .select(
-        "apt_name, dong, exclusive_area, floor, build_year, deal_date, deal_amount, cancel_date, dealing_type, estate_agent_location"
+        "apt_name, dong, exclusive_area, floor, build_year, deal_date, deal_amount, cancel_date, dealing_type, estate_agent_location, building_no"
       )
       .eq("region_code", regionCode)
       .order("deal_date", { ascending: false })
       .range(offset, offset + CHUNK - 1);
     if (startDate) q = q.gte("deal_date", startDate);
     if (endDate) q = q.lte("deal_date", endDate);
+    if (minArea !== undefined) q = q.gte("exclusive_area", minArea);
+    if (maxArea !== undefined) q = q.lt("exclusive_area", maxArea);
+    if (searchQuery) {
+      const escaped = searchQuery.replace(/[%,]/g, "");
+      q = q.or(`apt_name.ilike.%${escaped}%,dong.ilike.%${escaped}%`);
+    }
 
     const { data, error } = await q;
     if (error) throw new Error(error.message);
@@ -264,6 +280,36 @@ export async function getRegionMonthlyTrend(regionCode: string, months = 6) {
       month: r.month,
       avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
       count: r.cnt,
+    })
+  );
+}
+
+export type DongRanking = {
+  dong: string;
+  count: number;
+  avgPricePerPyeong: number;
+};
+
+/** 최근 N개월 동안 이 지역 안에서 거래량이 가장 많았던 동(법정동) 순위 */
+export async function getRegionDongRanking(
+  regionCode: string,
+  months = 3,
+  limit = 5
+): Promise<DongRanking[]> {
+  const supabase = getSupabaseAdmin();
+  const { start } = monthRange(months - 1);
+  const { data, error } = await supabase.rpc("region_dong_ranking", {
+    p_region: regionCode,
+    p_start: toISODate(start),
+    p_limit: limit,
+  });
+  if (error) throw new Error(error.message);
+
+  return ((data as { dong: string; cnt: number; avg_price_per_pyeong: number }[]) ?? []).map(
+    (r) => ({
+      dong: r.dong,
+      count: r.cnt,
+      avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
     })
   );
 }
@@ -455,6 +501,7 @@ export type ApartmentTrade = {
   floor: number | null;
   cancel_date: string | null;
   dealing_type: string | null;
+  building_no: string | null;
 };
 
 export type ApartmentHistory = {
@@ -471,7 +518,7 @@ export async function getApartmentHistory(
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("apt_trades")
-    .select("deal_date, deal_amount, exclusive_area, floor, cancel_date, dealing_type")
+    .select("deal_date, deal_amount, exclusive_area, floor, cancel_date, dealing_type, building_no")
     .eq("region_code", regionCode)
     .eq("dong", dong)
     .eq("apt_name", aptName)

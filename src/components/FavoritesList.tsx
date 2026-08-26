@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FavoriteWithLatest } from "@/lib/queries";
 import TrendChart from "@/components/TrendChart";
+import ApartmentHistoryModal from "@/components/ApartmentHistoryModal";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -16,6 +17,11 @@ export default function FavoritesList({
 }) {
   const router = useRouter();
   const [removingId, setRemovingId] = useState<number | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<{
+    regionCode: string;
+    dong: string;
+    aptName: string;
+  } | null>(null);
 
   async function onRemove(id: number) {
     setRemovingId(id);
@@ -43,7 +49,18 @@ export default function FavoritesList({
             <p className="text-xs text-gray-400">
               {fav.city} {fav.district} {fav.dong}
             </p>
-            <p className="mt-0.5 font-medium text-gray-900">{fav.apt_name}</p>
+            <button
+              onClick={() =>
+                setHistoryTarget({
+                  regionCode: fav.region_code,
+                  dong: fav.dong,
+                  aptName: fav.apt_name,
+                })
+              }
+              className="mt-0.5 text-left font-medium text-gray-900 hover:underline"
+            >
+              {fav.apt_name}
+            </button>
             {fav.latestDealAmount ? (
               <p className="mt-1 text-sm text-gray-600">
                 최근 {formatEok(fav.latestDealAmount)}
@@ -71,6 +88,15 @@ export default function FavoritesList({
           </button>
         </div>
       ))}
+
+      {historyTarget && (
+        <ApartmentHistoryModal
+          regionCode={historyTarget.regionCode}
+          dong={historyTarget.dong}
+          aptName={historyTarget.aptName}
+          onClose={() => setHistoryTarget(null)}
+        />
+      )}
     </div>
   );
 }

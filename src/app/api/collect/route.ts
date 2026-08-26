@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
           cancel_date: t.cancelDate,
           dealing_type: t.dealingType,
           estate_agent_location: t.estateAgentLocation,
+          building_no: t.buildingNo,
           updated_at: new Date().toISOString(),
         }));
 

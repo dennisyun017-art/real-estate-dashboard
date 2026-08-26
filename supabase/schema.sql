@@ -29,6 +29,8 @@ create index if not exists idx_apt_trades_apt_name
 alter table apt_trades add column if not exists cancel_date date;
 alter table apt_trades add column if not exists dealing_type text;
 alter table apt_trades add column if not exists estate_agent_location text;
+-- 동(건물) 번호. 호수는 개인정보라 국토부 공개 API에 아예 없습니다.
+alter table apt_trades add column if not exists building_no text;
 
 -- 수집 실행 이력 (배치가 언제 마지막으로 성공했는지 대시보드에 표시하기 위함)
 create table if not exists collect_runs (
@@ -136,13 +138,22 @@ $$ language sql stable;
 -- 최근 거래 내역 상세 (신고가 여부 + 기간 검색 + 페이지네이션).
 -- 신고가 = 같은 단지·같은 전용면적에서 지금까지 수집된 거래 중 가장 높은 금액과 같거나 그보다 높은 경우.
 drop function if exists region_recent_trades_detailed(text, int);
+drop function if exists region_recent_trades_detailed(text, int, int, date, date);
+
+-- CREATE OR REPLACE는 인자 목록이 정확히 같을 때만 "교체"입니다.
+-- 아래처럼 인자를 추가하면 기존 5개짜리 함수가 지워지지 않고 오버로드로
+-- 남아서 PostgREST가 어떤 걸 호출할지 못 정하는 "ambiguous function" 오류가 납니다.
+drop function if exists region_recent_trades_detailed(text, int, int, date, date);
 
 create or replace function region_recent_trades_detailed(
   p_region text,
   p_limit int default 50,
   p_offset int default 0,
   p_start_date date default null,
-  p_end_date date default null
+  p_end_date date default null,
+  p_query text default null,
+  p_min_area numeric default null,
+  p_max_area numeric default null
 )
 returns table(
   apt_name text,
@@ -157,6 +168,7 @@ returns table(
   cancel_date date,
   dealing_type text,
   estate_agent_location text,
+  building_no text,
   total_count bigint
 ) as $$
   with filtered as (
@@ -165,6 +177,9 @@ returns table(
     where region_code = p_region
       and (p_start_date is null or deal_date >= p_start_date)
       and (p_end_date is null or deal_date <= p_end_date)
+      and (p_query is null or apt_name ilike '%' || p_query || '%' or dong ilike '%' || p_query || '%')
+      and (p_min_area is null or exclusive_area >= p_min_area)
+      and (p_max_area is null or exclusive_area < p_max_area)
   ),
   recent as (
     select *
@@ -183,9 +198,24 @@ returns table(
     h.historic_high,
     (r.deal_amount >= h.historic_high) as is_new_high,
     r.cancel_date, r.dealing_type, r.estate_agent_location,
+    r.building_no,
     r.total_count
   from recent r
   join highs h
     on h.dong = r.dong and h.apt_name = r.apt_name and h.exclusive_area = r.exclusive_area
   order by r.deal_date desc;
+$$ language sql stable;
+
+-- 최근 N개월 동안 거래량이 가장 많은 동(법정동) 순위 — "요즘 거래 활발한 동" 파악용
+create or replace function region_dong_ranking(p_region text, p_start date, p_limit int default 5)
+returns table(dong text, cnt bigint, avg_price_per_pyeong numeric) as $$
+  select
+    dong,
+    count(*) as cnt,
+    round(avg(deal_amount / (exclusive_area / 3.3058))) as avg_price_per_pyeong
+  from apt_trades
+  where region_code = p_region and deal_date >= p_start
+  group by dong
+  order by cnt desc
+  limit p_limit;
 $$ language sql stable;

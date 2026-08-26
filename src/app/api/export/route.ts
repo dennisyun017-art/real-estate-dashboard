@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRegionTradesForExport } from "@/lib/queries";
 import { REGIONS } from "@/lib/regions";
+import { bucketToRange } from "@/lib/areaBuckets";
 
 function csvEscape(v: string | number | null): string {
   if (v === null) return "";
@@ -12,17 +13,28 @@ export async function GET(req: NextRequest) {
   const regionCode = req.nextUrl.searchParams.get("region");
   const startDate = req.nextUrl.searchParams.get("start") ?? undefined;
   const endDate = req.nextUrl.searchParams.get("end") ?? undefined;
+  const searchQuery = req.nextUrl.searchParams.get("q") ?? undefined;
+  const areaBucket = req.nextUrl.searchParams.get("area") ?? undefined;
 
   if (!regionCode) {
     return NextResponse.json({ error: "region 파라미터가 필요합니다." }, { status: 400 });
   }
 
+  const { min: minArea, max: maxArea } = bucketToRange(areaBucket);
   const region = REGIONS.find((r) => r.code === regionCode);
-  const trades = await getRegionTradesForExport(regionCode, startDate, endDate);
+  const trades = await getRegionTradesForExport(
+    regionCode,
+    startDate,
+    endDate,
+    searchQuery,
+    minArea,
+    maxArea
+  );
 
   const header = [
     "동",
     "단지명",
+    "건물동",
     "전용면적(m2)",
     "층",
     "건축년도",
@@ -38,6 +50,7 @@ export async function GET(req: NextRequest) {
       [
         t.dong,
         t.apt_name,
+        t.building_no ?? "",
         t.exclusive_area,
         t.floor ?? "",
         t.build_year ?? "",
