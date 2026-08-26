@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import FavoriteStar from "@/components/FavoriteStar";
 import type { RegionTradeDetail } from "@/lib/queries";
 import { buildPageList } from "@/lib/pagination";
+import ApartmentHistoryModal from "@/components/ApartmentHistoryModal";
 
 const PYEONG = 3.3058;
 
@@ -49,6 +50,9 @@ export default function RecentTradesTable({
   const [onlyNewHigh, setOnlyNewHigh] = useState(false);
   const [localStart, setLocalStart] = useState(startDate ?? "");
   const [localEnd, setLocalEnd] = useState(endDate ?? "");
+  const [historyTarget, setHistoryTarget] = useState<{ dong: string; aptName: string } | null>(
+    null
+  );
   const favSet = useMemo(() => new Set(favoriteKeys), [favoriteKeys]);
 
   function pushParams(next: Record<string, string | undefined>) {
@@ -174,9 +178,12 @@ export default function RecentTradesTable({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-gray-800">
+                        <button
+                          onClick={() => setHistoryTarget({ dong: t.dong, aptName: t.apt_name })}
+                          className="truncate text-left font-medium text-gray-800 hover:underline"
+                        >
                           {t.apt_name}
-                        </p>
+                        </button>
                         <p className="text-xs text-gray-400">
                           {t.dong} · {toPyeong(t.exclusive_area)} ({t.exclusive_area}m²) ·{" "}
                           {t.floor ?? "-"}층
@@ -255,6 +262,9 @@ export default function RecentTradesTable({
                       city={city}
                       district={district}
                       isFavorited={favSet.has(`${regionCode}|${t.dong}|${t.apt_name}`)}
+                      onSelectApt={() =>
+                        setHistoryTarget({ dong: t.dong, aptName: t.apt_name })
+                      }
                     />
                   );
                 })}
@@ -302,6 +312,15 @@ export default function RecentTradesTable({
           </button>
         </div>
       )}
+
+      {historyTarget && (
+        <ApartmentHistoryModal
+          regionCode={regionCode}
+          dong={historyTarget.dong}
+          aptName={historyTarget.aptName}
+          onClose={() => setHistoryTarget(null)}
+        />
+      )}
     </div>
   );
 }
@@ -313,6 +332,7 @@ function FragmentRow({
   city,
   district,
   isFavorited,
+  onSelectApt,
 }: {
   trade: RegionTradeDetail;
   showYearHeader: boolean;
@@ -320,6 +340,7 @@ function FragmentRow({
   city: string;
   district: string;
   isFavorited: boolean;
+  onSelectApt: () => void;
 }) {
   return (
     <>
@@ -342,7 +363,11 @@ function FragmentRow({
           />
         </td>
         <td className="py-2 pr-4 text-gray-500">{t.dong}</td>
-        <td className="py-2 pr-4 font-medium text-gray-800">{t.apt_name}</td>
+        <td className="py-2 pr-4 font-medium text-gray-800">
+          <button onClick={onSelectApt} className="text-left hover:underline">
+            {t.apt_name}
+          </button>
+        </td>
         <td className="py-2 pr-4 text-gray-500">{t.exclusive_area}m²</td>
         <td className="py-2 pr-4 text-gray-500">{toPyeong(t.exclusive_area)}</td>
         <td className="py-2 pr-4 text-gray-500">{t.floor ?? "-"}</td>

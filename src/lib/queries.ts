@@ -204,9 +204,49 @@ export async function getRegionRankings(): Promise<RegionRanking[]> {
         avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
         changePct: changePct !== null ? Math.round(changePct * 10) / 10 : null,
       };
-    })
-    // 거래량이 너무 적으면 변동률이 튀는 노이즈일 뿐이라 랭킹에서 제외
-    .filter((r) => r.count >= 3 && r.changePct !== null);
+    });
+  // 거래량이 너무 적으면 변동률이 튀는 노이즈일 뿐이라 TOP5 랭킹에서는 제외하지만,
+  // 사용자가 직접 즐겨찾기한 지역은 걸러지면 안 되므로 필터링은 화면(컴포넌트)에서 처리합니다.
+}
+
+export type FavoriteRegion = {
+  id: number;
+  region_code: string;
+  city: string;
+  district: string;
+  created_at: string;
+};
+
+export async function getFavoriteRegions(): Promise<FavoriteRegion[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("favorite_regions")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data as FavoriteRegion[]) ?? [];
+}
+
+export async function addFavoriteRegion(input: {
+  regionCode: string;
+  city: string;
+  district: string;
+}) {
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from("favorite_regions").upsert(
+    { region_code: input.regionCode, city: input.city, district: input.district },
+    { onConflict: "region_code", ignoreDuplicates: true }
+  );
+  if (error) throw new Error(error.message);
+}
+
+export async function removeFavoriteRegion(regionCode: string) {
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("favorite_regions")
+    .delete()
+    .eq("region_code", regionCode);
+  if (error) throw new Error(error.message);
 }
 
 /** 특정 지역의 최근 N개월 월별 평균 평당가 추이 (DB에서 GROUP BY로 집계) */
@@ -406,6 +446,59 @@ export async function searchApartments(query: string): Promise<ApartmentSearchRe
     latestDealDate: r.latest_deal_date,
     latestDealAmount: r.latest_deal_amount,
   }));
+}
+
+export type ApartmentTrade = {
+  deal_date: string;
+  deal_amount: number;
+  exclusive_area: number;
+  floor: number | null;
+  cancel_date: string | null;
+  dealing_type: string | null;
+};
+
+export type ApartmentHistory = {
+  trades: ApartmentTrade[];
+  trend: { month: string; avgPricePerPyeong: number; count: number }[];
+};
+
+/** 특정 단지(지역+동+단지명)의 전체 과거 거래 이력 + 월별 평당가 추이 */
+export async function getApartmentHistory(
+  regionCode: string,
+  dong: string,
+  aptName: string
+): Promise<ApartmentHistory> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("apt_trades")
+    .select("deal_date, deal_amount, exclusive_area, floor, cancel_date, dealing_type")
+    .eq("region_code", regionCode)
+    .eq("dong", dong)
+    .eq("apt_name", aptName)
+    .order("deal_date", { ascending: false })
+    .limit(1000);
+  if (error) throw new Error(error.message);
+
+  const trades = (data as ApartmentTrade[]) ?? [];
+
+  const buckets = new Map<string, { total: number; count: number }>();
+  for (const t of trades) {
+    const ym = t.deal_date.slice(0, 7);
+    const pricePerPyeong = t.deal_amount / (t.exclusive_area / PYEONG);
+    const b = buckets.get(ym) ?? { total: 0, count: 0 };
+    b.total += pricePerPyeong;
+    b.count += 1;
+    buckets.set(ym, b);
+  }
+  const trend = Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, b]) => ({
+      month,
+      avgPricePerPyeong: Math.round(b.total / b.count),
+      count: b.count,
+    }));
+
+  return { trades, trend };
 }
 
 export async function getLatestCollectRun() {

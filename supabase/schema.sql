@@ -80,6 +80,15 @@ returns table(region_code text, cnt bigint, avg_price_per_pyeong numeric) as $$
   group by region_code;
 $$ language sql stable;
 
+-- 관심 지역 즐겨찾기 (변동률 랭킹 TOP5에 안 들어도 항상 보고 싶은 지역을 고정)
+create table if not exists favorite_regions (
+  id bigint generated always as identity primary key,
+  region_code text not null unique,
+  city text not null,
+  district text not null,
+  created_at timestamptz not null default now()
+);
+
 -- 관심 단지 즐겨찾기 (가족/지인이 공유하는 단일 목록 — 계정별 구분 없음)
 create table if not exists favorites (
   id bigint generated always as identity primary key,

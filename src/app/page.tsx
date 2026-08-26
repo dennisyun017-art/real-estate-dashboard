@@ -7,6 +7,7 @@ import {
   getAllRegionsSummary,
   getFavoritesWithLatest,
   getRegionRankings,
+  getFavoriteRegions,
 } from "@/lib/queries";
 import RegionSelect from "@/components/RegionSelect";
 import TrendChart from "@/components/TrendChart";
@@ -16,6 +17,7 @@ import FavoritesList from "@/components/FavoritesList";
 import SearchBox from "@/components/SearchBox";
 import RecentTradesTable from "@/components/RecentTradesTable";
 import RegionRankings from "@/components/RegionRankings";
+import FavoriteRegionStar from "@/components/FavoriteRegionStar";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -45,6 +47,7 @@ export default async function Home({
     regionsSummary,
     favorites,
     rankings,
+    favoriteRegions,
   ] = await Promise.all([
     getCitySummary(),
     getRegionRecentTrades(selectedRegion, {
@@ -58,11 +61,15 @@ export default async function Home({
     getAllRegionsSummary(),
     getFavoritesWithLatest(),
     getRegionRankings(),
+    getFavoriteRegions(),
   ]);
 
   const regionInfo = REGIONS.find((r) => r.code === selectedRegion);
   const favoriteKeys = favorites.map(
     (f) => `${f.region_code}|${f.dong}|${f.apt_name}`
+  );
+  const isRegionFavorited = favoriteRegions.some(
+    (r) => r.region_code === selectedRegion
   );
 
   return (
@@ -129,7 +136,7 @@ export default async function Home({
           <h2 className="mb-3 text-sm font-medium text-gray-500">
             이번달 평당가 전월 대비 변동률 랭킹
           </h2>
-          <RegionRankings rankings={rankings} />
+          <RegionRankings rankings={rankings} favoriteRegions={favoriteRegions} />
         </section>
 
         {/* 지도 시각화 */}
@@ -160,7 +167,15 @@ export default async function Home({
                 {regionInfo?.city} {regionInfo?.district}
               </span>
             </h2>
-            <RegionSelect selected={selectedRegion} />
+            <div className="flex items-center gap-2">
+              <RegionSelect selected={selectedRegion} />
+              <FavoriteRegionStar
+                regionCode={selectedRegion}
+                city={regionInfo?.city ?? ""}
+                district={regionInfo?.district ?? ""}
+                initiallyFavorited={isRegionFavorited}
+              />
+            </div>
           </div>
 
           <h3 className="mb-2 text-xs font-medium text-gray-400">
