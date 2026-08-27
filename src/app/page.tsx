@@ -10,6 +10,7 @@ import {
   getFavoriteRegions,
   getRegionDongRanking,
   getRegionYearlySummary,
+  getRegionMonthlySummary,
   getRegionPyeongSummary,
 } from "@/lib/queries";
 import { bucketToRange } from "@/lib/areaBuckets";
@@ -23,7 +24,7 @@ import RecentTradesTable from "@/components/RecentTradesTable";
 import RegionRankings from "@/components/RegionRankings";
 import FavoriteRegionStar from "@/components/FavoriteRegionStar";
 import DongRanking from "@/components/DongRanking";
-import YearlySummaryTable from "@/components/YearlySummaryTable";
+import PeriodSummaryTable from "@/components/PeriodSummaryTable";
 import PyeongSummaryChart from "@/components/PyeongSummaryChart";
 
 function formatEok(manwon: number): string {
@@ -61,6 +62,7 @@ export default async function Home({
     favoriteRegions,
     dongRanking,
     yearlySummary,
+    monthlySummary,
     pyeongSummary,
   ] = await Promise.all([
     getCitySummary(),
@@ -82,6 +84,7 @@ export default async function Home({
     getFavoriteRegions(),
     getRegionDongRanking(selectedRegion, 3, 5),
     getRegionYearlySummary(selectedRegion),
+    getRegionMonthlySummary(selectedRegion, 24),
     getRegionPyeongSummary(selectedRegion, 6),
   ]);
 
@@ -214,9 +217,9 @@ export default async function Home({
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <h3 className="mb-2 text-xs font-medium text-gray-400">
-                연도별 요약
+                기간별 요약
               </h3>
-              <YearlySummaryTable items={yearlySummary} />
+              <PeriodSummaryTable yearly={yearlySummary} monthly={monthlySummary} />
             </div>
             <div>
               <h3 className="mb-2 text-xs font-medium text-gray-400">

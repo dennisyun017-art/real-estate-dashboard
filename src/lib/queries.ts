@@ -320,16 +320,16 @@ export async function getRegionDongRanking(
   );
 }
 
-export type YearlySummary = {
-  year: string;
+export type PeriodSummary = {
+  period: string; // 연도("2026") 또는 월("2026-08")
   count: number;
   avgPricePerPyeong: number;
   maxDealAmount: number;
-  changePct: number | null; // 전년 대비
+  changePct: number | null; // 이전 기간 대비
 };
 
 /** 연도별 거래건수·평균 평당가·최고가·전년대비 변동률 */
-export async function getRegionYearlySummary(regionCode: string): Promise<YearlySummary[]> {
+export async function getRegionYearlySummary(regionCode: string): Promise<PeriodSummary[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase.rpc("region_yearly_summary", {
     p_region: regionCode,
@@ -347,7 +347,40 @@ export async function getRegionYearlySummary(regionCode: string): Promise<Yearly
         ? ((r.avg_price_per_pyeong - prev.avg_price_per_pyeong) / prev.avg_price_per_pyeong) * 100
         : null;
     return {
-      year: r.year,
+      period: r.year,
+      count: r.cnt,
+      avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
+      maxDealAmount: r.max_deal_amount,
+      changePct: changePct !== null ? Math.round(changePct * 10) / 10 : null,
+    };
+  });
+}
+
+/** 월별 거래건수·평균 평당가·최고가·전월대비 변동률 (최근 N개월) */
+export async function getRegionMonthlySummary(
+  regionCode: string,
+  months = 24
+): Promise<PeriodSummary[]> {
+  const supabase = getSupabaseAdmin();
+  const { start } = monthRange(months - 1);
+  const { data, error } = await supabase.rpc("region_monthly_summary", {
+    p_region: regionCode,
+    p_start: toISODate(start),
+  });
+  if (error) throw new Error(error.message);
+
+  const rows =
+    (data as { period: string; cnt: number; avg_price_per_pyeong: number; max_deal_amount: number }[]) ??
+    [];
+
+  return rows.map((r, i) => {
+    const prev = rows[i - 1];
+    const changePct =
+      prev && prev.avg_price_per_pyeong > 0
+        ? ((r.avg_price_per_pyeong - prev.avg_price_per_pyeong) / prev.avg_price_per_pyeong) * 100
+        : null;
+    return {
+      period: r.period,
       count: r.cnt,
       avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
       maxDealAmount: r.max_deal_amount,

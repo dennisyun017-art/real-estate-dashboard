@@ -261,3 +261,17 @@ returns table(pyeong_bucket text, cnt bigint, avg_price_per_pyeong numeric, min_
   group by 1
   order by min(exclusive_area);
 $$ language sql stable;
+
+-- 월별 요약 (연도별 요약과 같은 형태, 기간만 월 단위) — 최근 N개월
+create or replace function region_monthly_summary(p_region text, p_start date)
+returns table(period text, cnt bigint, avg_price_per_pyeong numeric, max_deal_amount integer) as $$
+  select
+    to_char(deal_date, 'YYYY-MM') as period,
+    count(*) as cnt,
+    round(avg(deal_amount / (exclusive_area / 3.3058))) as avg_price_per_pyeong,
+    max(deal_amount) as max_deal_amount
+  from apt_trades
+  where region_code = p_region and deal_date >= p_start
+  group by to_char(deal_date, 'YYYY-MM')
+  order by period;
+$$ language sql stable;
