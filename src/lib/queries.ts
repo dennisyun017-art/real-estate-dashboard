@@ -669,6 +669,34 @@ export async function getApartmentHistory(
   return { trades, trend };
 }
 
+export type CommerceCategory = {
+  category: string;
+  count: number;
+};
+
+/**
+ * 지역 중심좌표 기준 반경 3km 내 생활 인프라(상가업소) 업종 대분류별 개수.
+ * scripts/collect-commerce.mjs가 주기적으로 미리 채워둔 값을 그대로 읽습니다.
+ */
+export async function getRegionCommerceSummary(
+  regionCode: string
+): Promise<{ items: CommerceCategory[]; collectedAt: string | null }> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("region_commerce_summary")
+    .select("category, cnt, collected_at")
+    .eq("region_code", regionCode)
+    .order("cnt", { ascending: false });
+  if (error) throw new Error(error.message);
+
+  const rows = (data as { category: string; cnt: number; collected_at: string }[]) ?? [];
+
+  return {
+    items: rows.map((r) => ({ category: r.category, count: r.cnt })),
+    collectedAt: rows[0]?.collected_at ?? null,
+  };
+}
+
 export async function getLatestCollectRun() {
   const supabase = getSupabaseAdmin();
   const { data } = await supabase

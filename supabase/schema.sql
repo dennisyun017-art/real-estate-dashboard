@@ -275,3 +275,16 @@ returns table(period text, cnt bigint, avg_price_per_pyeong numeric, max_deal_am
   group by to_char(deal_date, 'YYYY-MM')
   order by period;
 $$ language sql stable;
+
+-- 지역 중심좌표 기준 반경 내 생활 인프라(상가업소) 업종 대분류별 개수.
+-- 소상공인시장진흥공단 상가업소정보는 자주 안 바뀌므로(분기 단위 스냅샷) 매번 호출하지 않고
+-- 별도 배치(scripts/collect-commerce.mjs)로 주기적으로 수집해서 이 표에 저장해둡니다.
+create table if not exists region_commerce_summary (
+  id bigint generated always as identity primary key,
+  region_code text not null,
+  category text not null, -- 상권업종대분류명 (소매/음식/보건의료/교육 등)
+  cnt integer not null,
+  radius_m integer not null default 3000,
+  collected_at timestamptz not null default now(),
+  unique (region_code, category)
+);

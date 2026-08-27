@@ -12,6 +12,7 @@ import {
   getRegionYearlySummary,
   getRegionMonthlySummary,
   getRegionPyeongSummary,
+  getRegionCommerceSummary,
 } from "@/lib/queries";
 import { bucketToRange } from "@/lib/areaBuckets";
 import RegionSelect from "@/components/RegionSelect";
@@ -26,6 +27,7 @@ import FavoriteRegionStar from "@/components/FavoriteRegionStar";
 import DongRanking from "@/components/DongRanking";
 import PeriodSummaryTable from "@/components/PeriodSummaryTable";
 import PyeongSummaryChart from "@/components/PyeongSummaryChart";
+import CommerceSummary from "@/components/CommerceSummary";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -64,6 +66,7 @@ export default async function Home({
     yearlySummary,
     monthlySummary,
     pyeongSummary,
+    commerceSummary,
   ] = await Promise.all([
     getCitySummary(),
     getRegionRecentTrades(selectedRegion, {
@@ -86,6 +89,7 @@ export default async function Home({
     getRegionYearlySummary(selectedRegion),
     getRegionMonthlySummary(selectedRegion, 24),
     getRegionPyeongSummary(selectedRegion, 6),
+    getRegionCommerceSummary(selectedRegion),
   ]);
 
   const regionInfo = REGIONS.find((r) => r.code === selectedRegion);
@@ -228,6 +232,11 @@ export default async function Home({
               <PyeongSummaryChart items={pyeongSummary} />
             </div>
           </div>
+
+          <h3 className="mb-2 mt-6 text-xs font-medium text-gray-400">
+            🏙️ 주변 생활 인프라 (반경 3km)
+          </h3>
+          <CommerceSummary items={commerceSummary.items} collectedAt={commerceSummary.collectedAt} />
 
           <h3 className="mb-2 mt-6 text-xs font-medium text-gray-400">
             최근 거래 내역
