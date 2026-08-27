@@ -70,7 +70,8 @@ export default function RecentTradesTable({
       if (value) p.set(key, value);
       else p.delete(key);
     }
-    router.push(`/?${p.toString()}`);
+    // scroll:false — 필터/페이지 이동할 때마다 화면이 맨 위로 튀지 않도록
+    router.push(`/?${p.toString()}`, { scroll: false });
   }
 
   function applyFilters() {

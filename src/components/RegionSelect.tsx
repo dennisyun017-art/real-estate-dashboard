@@ -9,7 +9,7 @@ export default function RegionSelect({ selected }: { selected: string }) {
   return (
     <select
       value={selected}
-      onChange={(e) => router.push(`/?region=${e.target.value}`)}
+      onChange={(e) => router.push(`/?region=${e.target.value}`, { scroll: false })}
       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm sm:w-auto"
     >
       {REGIONS.map((r) => (
