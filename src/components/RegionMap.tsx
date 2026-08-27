@@ -36,7 +36,7 @@ export default function RegionMap({
   const maxCount = Math.max(1, ...summary.map((s) => s.count));
 
   return (
-    <div className="h-[280px] w-full overflow-hidden rounded-xl sm:h-[420px]">
+    <div className="relative z-0 h-[280px] w-full overflow-hidden rounded-xl sm:h-[420px]">
     <MapContainer
       center={[36.6, 127.3]}
       zoom={7}
