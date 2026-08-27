@@ -9,6 +9,8 @@ import {
   getRegionRankings,
   getFavoriteRegions,
   getRegionDongRanking,
+  getRegionYearlySummary,
+  getRegionPyeongSummary,
 } from "@/lib/queries";
 import { bucketToRange } from "@/lib/areaBuckets";
 import RegionSelect from "@/components/RegionSelect";
@@ -21,6 +23,8 @@ import RecentTradesTable from "@/components/RecentTradesTable";
 import RegionRankings from "@/components/RegionRankings";
 import FavoriteRegionStar from "@/components/FavoriteRegionStar";
 import DongRanking from "@/components/DongRanking";
+import YearlySummaryTable from "@/components/YearlySummaryTable";
+import PyeongSummaryChart from "@/components/PyeongSummaryChart";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -56,6 +60,8 @@ export default async function Home({
     rankings,
     favoriteRegions,
     dongRanking,
+    yearlySummary,
+    pyeongSummary,
   ] = await Promise.all([
     getCitySummary(),
     getRegionRecentTrades(selectedRegion, {
@@ -75,6 +81,8 @@ export default async function Home({
     getRegionRankings(),
     getFavoriteRegions(),
     getRegionDongRanking(selectedRegion, 3, 5),
+    getRegionYearlySummary(selectedRegion),
+    getRegionPyeongSummary(selectedRegion, 6),
   ]);
 
   const regionInfo = REGIONS.find((r) => r.code === selectedRegion);
@@ -202,6 +210,21 @@ export default async function Home({
             최근 6개월 평당가 추이
           </h3>
           <TrendChart data={trend} />
+
+          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <h3 className="mb-2 text-xs font-medium text-gray-400">
+                연도별 요약
+              </h3>
+              <YearlySummaryTable items={yearlySummary} />
+            </div>
+            <div>
+              <h3 className="mb-2 text-xs font-medium text-gray-400">
+                최근 6개월 평형대별 평균 평당가
+              </h3>
+              <PyeongSummaryChart items={pyeongSummary} />
+            </div>
+          </div>
 
           <h3 className="mb-2 mt-6 text-xs font-medium text-gray-400">
             최근 거래 내역

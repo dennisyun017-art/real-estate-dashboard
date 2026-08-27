@@ -222,3 +222,38 @@ returns table(dong text, cnt bigint, avg_price_per_pyeong numeric) as $$
   order by cnt desc
   limit p_limit;
 $$ language sql stable;
+
+-- 연도별 요약 (거래건수, 평균 평당가, 최고가) — 3년치 백필 데이터로 연도별 흐름 파악용
+create or replace function region_yearly_summary(p_region text)
+returns table(year text, cnt bigint, avg_price_per_pyeong numeric, max_deal_amount integer) as $$
+  select
+    to_char(deal_date, 'YYYY') as year,
+    count(*) as cnt,
+    round(avg(deal_amount / (exclusive_area / 3.3058))) as avg_price_per_pyeong,
+    max(deal_amount) as max_deal_amount
+  from apt_trades
+  where region_code = p_region
+  group by to_char(deal_date, 'YYYY')
+  order by year;
+$$ language sql stable;
+
+-- 지역 내 평형대별 시세 비교 (최근 N개월)
+create or replace function region_pyeong_summary(p_region text, p_start date)
+returns table(pyeong_bucket text, cnt bigint, avg_price_per_pyeong numeric, min_area numeric) as $$
+  select
+    case
+      when exclusive_area < 10 * 3.3058 then '10평 이하'
+      when exclusive_area < 20 * 3.3058 then '10평대'
+      when exclusive_area < 30 * 3.3058 then '20평대'
+      when exclusive_area < 40 * 3.3058 then '30평대'
+      when exclusive_area < 50 * 3.3058 then '40평대'
+      else '50평 이상'
+    end as pyeong_bucket,
+    count(*) as cnt,
+    round(avg(deal_amount / (exclusive_area / 3.3058))) as avg_price_per_pyeong,
+    min(exclusive_area) as min_area
+  from apt_trades
+  where region_code = p_region and deal_date >= p_start
+  group by 1
+  order by min(exclusive_area);
+$$ language sql stable;

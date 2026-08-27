@@ -320,6 +320,70 @@ export async function getRegionDongRanking(
   );
 }
 
+export type YearlySummary = {
+  year: string;
+  count: number;
+  avgPricePerPyeong: number;
+  maxDealAmount: number;
+  changePct: number | null; // 전년 대비
+};
+
+/** 연도별 거래건수·평균 평당가·최고가·전년대비 변동률 */
+export async function getRegionYearlySummary(regionCode: string): Promise<YearlySummary[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.rpc("region_yearly_summary", {
+    p_region: regionCode,
+  });
+  if (error) throw new Error(error.message);
+
+  const rows =
+    (data as { year: string; cnt: number; avg_price_per_pyeong: number; max_deal_amount: number }[]) ??
+    [];
+
+  return rows.map((r, i) => {
+    const prev = rows[i - 1];
+    const changePct =
+      prev && prev.avg_price_per_pyeong > 0
+        ? ((r.avg_price_per_pyeong - prev.avg_price_per_pyeong) / prev.avg_price_per_pyeong) * 100
+        : null;
+    return {
+      year: r.year,
+      count: r.cnt,
+      avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
+      maxDealAmount: r.max_deal_amount,
+      changePct: changePct !== null ? Math.round(changePct * 10) / 10 : null,
+    };
+  });
+}
+
+export type PyeongSummary = {
+  pyeongBucket: string;
+  count: number;
+  avgPricePerPyeong: number;
+};
+
+/** 지역 내 평형대별(10평 이하 ~ 50평 이상) 평균 평당가 비교 (최근 N개월) */
+export async function getRegionPyeongSummary(
+  regionCode: string,
+  months = 6
+): Promise<PyeongSummary[]> {
+  const supabase = getSupabaseAdmin();
+  const { start } = monthRange(months - 1);
+  const { data, error } = await supabase.rpc("region_pyeong_summary", {
+    p_region: regionCode,
+    p_start: toISODate(start),
+  });
+  if (error) throw new Error(error.message);
+
+  return (
+    (data as { pyeong_bucket: string; cnt: number; avg_price_per_pyeong: number }[]) ?? []
+  ).map((r) => ({
+    pyeongBucket: r.pyeong_bucket,
+    count: r.cnt,
+    avgPricePerPyeong: Math.round(r.avg_price_per_pyeong),
+  }));
+}
+
 export type RegionSummary = {
   regionCode: string;
   count: number;

@@ -19,6 +19,34 @@ function formatPricePerPyeong(dealAmount: number, exclusiveArea: number): string
   return `${Math.round(pricePerPyeong).toLocaleString()}만원/평`;
 }
 
+function floorTier(floor: number): string {
+  if (floor <= 5) return "저층(1~5F)";
+  if (floor <= 15) return "중층(6~15F)";
+  return "고층(16F~)";
+}
+
+const FLOOR_TIER_ORDER = ["저층(1~5F)", "중층(6~15F)", "고층(16F~)"];
+
+/** 층 구간별(저/중/고층) 평균 평당가 — 층 프리미엄을 가늠하는 용도 (근사치: 실제 총 층수를 몰라 절대 층수 기준) */
+function computeFloorPremium(
+  trades: { deal_amount: number; exclusive_area: number; floor: number | null }[]
+) {
+  const buckets = new Map<string, { total: number; count: number }>();
+  for (const t of trades) {
+    if (t.floor === null || t.floor <= 0) continue;
+    const tier = floorTier(t.floor);
+    const pricePerPyeong = t.deal_amount / (t.exclusive_area / PYEONG);
+    const b = buckets.get(tier) ?? { total: 0, count: 0 };
+    b.total += pricePerPyeong;
+    b.count += 1;
+    buckets.set(tier, b);
+  }
+  return FLOOR_TIER_ORDER.filter((t) => buckets.has(t)).map((tier) => {
+    const b = buckets.get(tier)!;
+    return { tier, avgPricePerPyeong: Math.round(b.total / b.count), count: b.count };
+  });
+}
+
 /** 선택된(또는 전체) 거래 목록으로 월별 평균 평당가 추이를 다시 계산 */
 function computeTrend(
   trades: { deal_date: string; deal_amount: number; exclusive_area: number }[]
@@ -98,6 +126,7 @@ export default function ApartmentHistoryModal({
   }, [data, areaFilter]);
 
   const trend = useMemo(() => computeTrend(filteredTrades), [filteredTrades]);
+  const floorPremium = useMemo(() => computeFloorPremium(filteredTrades), [filteredTrades]);
 
   return (
     <div
@@ -162,6 +191,28 @@ export default function ApartmentHistoryModal({
               평당가 추이 ({trend.length}개월, 막대는 거래건수)
             </h4>
             <TrendChart data={trend} height={200} showVolume />
+
+            {floorPremium.length > 1 && (
+              <>
+                <h4 className="mb-2 mt-5 text-xs font-medium text-gray-400">
+                  층별 평당가 비교 (절대 층수 기준 근사치)
+                </h4>
+                <div className="grid grid-cols-3 gap-2">
+                  {floorPremium.map((f) => (
+                    <div
+                      key={f.tier}
+                      className="rounded-lg border border-gray-200 p-2.5 text-center"
+                    >
+                      <p className="text-xs text-gray-400">{f.tier}</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {(f.avgPricePerPyeong / 10000).toFixed(1)}억/평
+                      </p>
+                      <p className="text-xs text-gray-400">{f.count}건</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             <h4 className="mb-2 mt-5 text-xs font-medium text-gray-400">
               {areaFilter !== null ? `${areaFilter}평 ` : "전체 "}
