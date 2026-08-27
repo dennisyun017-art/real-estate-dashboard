@@ -417,6 +417,7 @@ export type Favorite = {
   dong: string;
   apt_name: string;
   created_at: string;
+  sort_order: number | null;
 };
 
 export type FavoriteTrendPoint = {
@@ -437,10 +438,15 @@ const PYEONG = 3.3058;
 /** 즐겨찾기 목록 + 각 단지의 최근 거래 1건 + 최근 12개월 평당가 추이 */
 export async function getFavoritesWithLatest(): Promise<FavoriteWithLatest[]> {
   const supabase = getSupabaseAdmin();
+  // sort_order가 설정된(=사용자가 한 번이라도 드래그로 정렬한) 항목은 그 순서를 따르고,
+  // 아직 안 정해진 항목(null)은 지역(시/구)별로 묶어서 자연스럽게 기본 정렬됩니다.
   const { data: favorites, error } = await supabase
     .from("favorites")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("sort_order", { ascending: true, nullsFirst: false })
+    .order("city", { ascending: true })
+    .order("district", { ascending: true })
+    .order("apt_name", { ascending: true });
   if (error) throw new Error(error.message);
   if (!favorites || favorites.length === 0) return [];
 
@@ -516,6 +522,18 @@ export async function removeFavorite(id: number) {
   const supabase = getSupabaseAdmin();
   const { error } = await supabase.from("favorites").delete().eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+/** 드래그로 정한 새 순서를 저장합니다. orderedIds는 화면에 보이는 순서 그대로. */
+export async function reorderFavorites(orderedIds: number[]) {
+  const supabase = getSupabaseAdmin();
+  const results = await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase.from("favorites").update({ sort_order: index }).eq("id", id)
+    )
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw new Error(failed.error.message);
 }
 
 export type ApartmentSearchResult = {

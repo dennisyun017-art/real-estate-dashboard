@@ -103,6 +103,10 @@ create table if not exists favorites (
   unique (region_code, dong, apt_name)
 );
 
+-- 사용자가 직접 드래그로 정렬한 순서. null이면(아직 한 번도 드래그 안 함)
+-- 지역(시/구)별로 묶어서 보여주는 기본 정렬을 사용합니다.
+alter table favorites add column if not exists sort_order integer;
+
 -- 단지 이름 검색 (현재 선택된 지역과 무관하게 전체 수집 범위에서 검색해서 즐겨찾기 추가 가능하게)
 create extension if not exists pg_trgm;
 
