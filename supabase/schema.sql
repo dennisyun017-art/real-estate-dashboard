@@ -141,9 +141,10 @@ drop function if exists region_recent_trades_detailed(text, int);
 drop function if exists region_recent_trades_detailed(text, int, int, date, date);
 
 -- CREATE OR REPLACE는 인자 목록이 정확히 같을 때만 "교체"입니다.
--- 아래처럼 인자를 추가하면 기존 5개짜리 함수가 지워지지 않고 오버로드로
--- 남아서 PostgREST가 어떤 걸 호출할지 못 정하는 "ambiguous function" 오류가 납니다.
+-- 인자를 추가할 때마다 이전 시그니처를 먼저 DROP해야 오버로드 충돌(ambiguous
+-- function 오류)이 안 납니다. p_exclude_direct 추가하면서 8개짜리를 지웁니다.
 drop function if exists region_recent_trades_detailed(text, int, int, date, date);
+drop function if exists region_recent_trades_detailed(text, int, int, date, date, text, numeric, numeric);
 
 create or replace function region_recent_trades_detailed(
   p_region text,
@@ -153,7 +154,8 @@ create or replace function region_recent_trades_detailed(
   p_end_date date default null,
   p_query text default null,
   p_min_area numeric default null,
-  p_max_area numeric default null
+  p_max_area numeric default null,
+  p_exclude_direct boolean default false
 )
 returns table(
   apt_name text,
@@ -180,6 +182,7 @@ returns table(
       and (p_query is null or apt_name ilike '%' || p_query || '%' or dong ilike '%' || p_query || '%')
       and (p_min_area is null or exclusive_area >= p_min_area)
       and (p_max_area is null or exclusive_area < p_max_area)
+      and (not p_exclude_direct or dealing_type is distinct from '직거래')
   ),
   recent as (
     select *

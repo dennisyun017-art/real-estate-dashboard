@@ -43,6 +43,7 @@ export default async function Home({
   const query = typeof params.q === "string" && params.q !== "" ? params.q : undefined;
   const areaBucket = typeof params.area === "string" ? params.area : "";
   const { min: minArea, max: maxArea } = bucketToRange(areaBucket);
+  const excludeDirect = params.excludeDirect === "1";
   const PAGE_SIZE = 50;
 
   const [
@@ -65,6 +66,7 @@ export default async function Home({
       query,
       minArea,
       maxArea,
+      excludeDirect,
     }),
     getRegionMonthlyTrend(selectedRegion, 6),
     getLatestCollectRun(),
@@ -213,6 +215,7 @@ export default async function Home({
             endDate={endDate}
             query={query}
             areaBucket={areaBucket}
+            excludeDirect={excludeDirect}
             regionCode={selectedRegion}
             city={regionInfo?.city ?? ""}
             district={regionInfo?.district ?? ""}

@@ -99,9 +99,11 @@ export async function getRegionRecentTrades(
     query?: string; // 단지명·동 검색어 (전체 데이터 대상)
     minArea?: number; // 전용면적(m²) 하한
     maxArea?: number; // 전용면적(m²) 상한 (미만)
+    excludeDirect?: boolean; // 직거래 제외 (가족간 거래 등으로 시세 왜곡 방지)
   } = {}
 ): Promise<RegionTradesPage> {
-  const { page = 1, pageSize = 50, startDate, endDate, query, minArea, maxArea } = opts;
+  const { page = 1, pageSize = 50, startDate, endDate, query, minArea, maxArea, excludeDirect } =
+    opts;
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase.rpc("region_recent_trades_detailed", {
     p_region: regionCode,
@@ -112,6 +114,7 @@ export async function getRegionRecentTrades(
     p_query: query ?? null,
     p_min_area: minArea ?? null,
     p_max_area: maxArea ?? null,
+    p_exclude_direct: excludeDirect ?? false,
   });
   if (error) throw new Error(error.message);
 
@@ -131,7 +134,8 @@ export async function getRegionTradesForExport(
   endDate?: string,
   searchQuery?: string,
   minArea?: number,
-  maxArea?: number
+  maxArea?: number,
+  excludeDirect?: boolean
 ): Promise<RegionTradeDetail[]> {
   const supabase = getSupabaseAdmin();
   const CHUNK = 1000;
@@ -155,6 +159,8 @@ export async function getRegionTradesForExport(
       const escaped = searchQuery.replace(/[%,]/g, "");
       q = q.or(`apt_name.ilike.%${escaped}%,dong.ilike.%${escaped}%`);
     }
+    // .neq()는 NULL 행까지 걸러버리므로, null이거나 직거래가 아닌 행만 남기도록 or로 처리
+    if (excludeDirect) q = q.or("dealing_type.is.null,dealing_type.neq.직거래");
 
     const { data, error } = await q;
     if (error) throw new Error(error.message);

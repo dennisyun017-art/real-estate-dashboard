@@ -31,6 +31,7 @@ export default function RecentTradesTable({
   endDate,
   query,
   areaBucket,
+  excludeDirect,
   regionCode,
   city,
   district,
@@ -44,6 +45,7 @@ export default function RecentTradesTable({
   endDate?: string;
   query?: string;
   areaBucket?: string;
+  excludeDirect?: boolean;
   regionCode: string;
   city: string;
   district: string;
@@ -56,6 +58,7 @@ export default function RecentTradesTable({
   const [localEnd, setLocalEnd] = useState(endDate ?? "");
   const [localQuery, setLocalQuery] = useState(query ?? "");
   const [localArea, setLocalArea] = useState(areaBucket ?? "");
+  const [localExcludeDirect, setLocalExcludeDirect] = useState(excludeDirect ?? false);
   const [historyTarget, setHistoryTarget] = useState<{ dong: string; aptName: string } | null>(
     null
   );
@@ -76,6 +79,7 @@ export default function RecentTradesTable({
       end: localEnd || undefined,
       q: localQuery.trim() || undefined,
       area: localArea || undefined,
+      excludeDirect: localExcludeDirect ? "1" : undefined,
       page: undefined,
     });
   }
@@ -85,14 +89,22 @@ export default function RecentTradesTable({
     setLocalEnd("");
     setLocalQuery("");
     setLocalArea("");
-    pushParams({ start: undefined, end: undefined, q: undefined, area: undefined, page: undefined });
+    setLocalExcludeDirect(false);
+    pushParams({
+      start: undefined,
+      end: undefined,
+      q: undefined,
+      area: undefined,
+      excludeDirect: undefined,
+      page: undefined,
+    });
   }
 
   function goToPage(p: number) {
     pushParams({ page: p === 1 ? undefined : String(p) });
   }
 
-  const hasActiveFilters = !!(startDate || endDate || query || areaBucket);
+  const hasActiveFilters = !!(startDate || endDate || query || areaBucket || excludeDirect);
 
   const filtered = onlyNewHigh ? trades.filter((t) => t.is_new_high) : trades;
 
@@ -145,6 +157,14 @@ export default function RecentTradesTable({
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        <label className="flex items-center gap-1.5 pb-1.5 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={localExcludeDirect}
+            onChange={(e) => setLocalExcludeDirect(e.target.checked)}
+          />
+          직거래 제외
+        </label>
         <button
           onClick={applyFilters}
           className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
@@ -178,7 +198,7 @@ export default function RecentTradesTable({
             endDate ? `&end=${endDate}` : ""
           }${query ? `&q=${encodeURIComponent(query)}` : ""}${
             areaBucket ? `&area=${areaBucket}` : ""
-          }`}
+          }${excludeDirect ? "&excludeDirect=1" : ""}`}
           className="ml-auto rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50"
         >
           ⬇ CSV 내보내기 (현재 조회조건 전체)

@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const endDate = req.nextUrl.searchParams.get("end") ?? undefined;
   const searchQuery = req.nextUrl.searchParams.get("q") ?? undefined;
   const areaBucket = req.nextUrl.searchParams.get("area") ?? undefined;
+  const excludeDirect = req.nextUrl.searchParams.get("excludeDirect") === "1";
 
   if (!regionCode) {
     return NextResponse.json({ error: "region 파라미터가 필요합니다." }, { status: 400 });
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest) {
     endDate,
     searchQuery,
     minArea,
-    maxArea
+    maxArea,
+    excludeDirect
   );
 
   const header = [
