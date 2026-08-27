@@ -4,8 +4,15 @@ import { useEffect, useState } from "react";
 import TrendChart from "@/components/TrendChart";
 import type { ApartmentHistory } from "@/lib/queries";
 
+const PYEONG = 3.3058;
+
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
+}
+
+function formatPricePerPyeong(dealAmount: number, exclusiveArea: number): string {
+  const pricePerPyeong = dealAmount / (exclusiveArea / PYEONG);
+  return `${Math.round(pricePerPyeong).toLocaleString()}만원/평`;
 }
 
 export default function ApartmentHistoryModal({
@@ -89,6 +96,7 @@ export default function ApartmentHistoryModal({
                     <th className="py-1.5 pr-3">전용면적</th>
                     <th className="py-1.5 pr-3">층</th>
                     <th className="py-1.5 pr-3 text-right">거래금액</th>
+                    <th className="py-1.5 pr-3 text-right">평단가</th>
                     <th className="py-1.5 pr-3">거래유형</th>
                     <th className="py-1.5 pr-3">해제</th>
                   </tr>
@@ -109,6 +117,9 @@ export default function ApartmentHistoryModal({
                       <td className="py-1.5 pr-3 text-gray-500">{t.floor ?? "-"}</td>
                       <td className="py-1.5 pr-3 text-right font-medium text-gray-800">
                         {formatEok(t.deal_amount)}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right text-blue-600">
+                        {formatPricePerPyeong(t.deal_amount, t.exclusive_area)}
                       </td>
                       <td className="py-1.5 pr-3 text-gray-500">
                         {t.dealing_type ?? "-"}
