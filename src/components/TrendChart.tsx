@@ -66,6 +66,8 @@ export default function TrendChart({
             tick={{ fontSize: 12 }}
             width={32}
             allowDecimals={false}
+            // 막대가 축 최댓값에 딱 닿아 잘려 보이지 않도록 위쪽에 여유를 둠
+            domain={[0, (dataMax: number) => Math.max(4, Math.ceil(dataMax * 1.3))]}
           />
         )}
         <Tooltip
