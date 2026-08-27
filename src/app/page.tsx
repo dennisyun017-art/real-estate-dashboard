@@ -28,6 +28,7 @@ import DongRanking from "@/components/DongRanking";
 import PeriodSummaryTable from "@/components/PeriodSummaryTable";
 import PyeongSummaryChart from "@/components/PyeongSummaryChart";
 import CommerceSummary from "@/components/CommerceSummary";
+import CommerceCollectButton from "@/components/CommerceCollectButton";
 
 function formatEok(manwon: number): string {
   return `${(manwon / 10000).toFixed(1)}억`;
@@ -236,6 +237,7 @@ export default async function Home({
           <h3 className="mb-2 mt-6 text-xs font-medium text-gray-400">
             🏙️ 주변 생활 인프라 (반경 3km)
           </h3>
+          <CommerceCollectButton />
           <CommerceSummary items={commerceSummary.items} collectedAt={commerceSummary.collectedAt} />
 
           <h3 className="mb-2 mt-6 text-xs font-medium text-gray-400">
